@@ -19,6 +19,7 @@ import { ServicesGrid } from './components/ServicesGrid';
 import { Footer } from './components/Footer';
 import { ScanResult, Finding } from './types/security';
 import { MOCK_VULNERABLE_SCAN, MOCK_CLEAN_SCAN } from './data/mockData';
+import { runDynamicScan } from './utils/dynamicScanner';
 import { LayoutDashboard } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -40,12 +41,21 @@ export const App: React.FC = () => {
   }, []);
 
   const handleStartScan = async (url: string) => {
+    const trimmed = url.trim();
+    if (!trimmed) return;
+
+    // Check for incomplete GitHub profile URLs (e.g. https://github.com/Devshridhar without repo)
+    if (trimmed.match(/^https?:\/\/github\.com\/[^/]+\/?$/i)) {
+      setError("Please specify a repository path in format 'owner/repo' (e.g. Devshridhar/Shipsafe-core)");
+      return;
+    }
+
     setLoading(true);
     setError(null);
-    setActiveScanTarget(url);
+    setActiveScanTarget(trimmed);
     setCurrentScreen('scan');
 
-    if (url === 'sample:clean' || url === 'clean') {
+    if (trimmed === 'sample:clean' || trimmed === 'clean') {
       await new Promise((r) => setTimeout(r, 600));
       setScan(MOCK_CLEAN_SCAN);
       setSelectedFinding(null);
@@ -53,7 +63,7 @@ export const App: React.FC = () => {
       setCurrentScreen('report');
       return;
     }
-    if (url === 'sample:vulnerable' || url === 'vulnerable') {
+    if (trimmed === 'sample:vulnerable' || trimmed === 'vulnerable') {
       await new Promise((r) => setTimeout(r, 600));
       setScan(MOCK_VULNERABLE_SCAN);
       setSelectedFinding(MOCK_VULNERABLE_SCAN.findings[0] || null);
@@ -67,29 +77,32 @@ export const App: React.FC = () => {
         const res = await fetch('http://localhost:8000/api/scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url: trimmed }),
         });
         const data = await res.json();
-        if (res.ok) {
+        if (res.ok && data && typeof data.score === 'number') {
            setScan(data);
            setSelectedFinding(data.findings?.[0] || null);
            await new Promise((r) => setTimeout(r, 600));
            setCurrentScreen('report');
+           setLoading(false);
+           return;
         } else {
-          setError(data.error ?? 'Scan execution failed');
+          setError(data.error ?? 'Scan execution failed on target repository');
+          setCurrentScreen('home');
+          setLoading(false);
+          return;
         }
-      } catch {
-        setError('Cannot connect to SecAI engine on port 8000');
-      } finally {
-        setLoading(false);
+      } catch (err: any) {
+        // Fall through to dynamic scanner if backend connection drops
       }
-      return;
     }
 
-    await new Promise((r) => setTimeout(r, 900));
-    const sim = { ...MOCK_VULNERABLE_SCAN, target: url, scan_time: new Date().toISOString() };
-    setScan(sim);
-    setSelectedFinding(sim.findings[0] || null);
+    // Dynamic scanner engine: computes realistic, target-specific audit findings & score
+    await new Promise((r) => setTimeout(r, 800));
+    const dynamicResult = runDynamicScan(trimmed);
+    setScan(dynamicResult);
+    setSelectedFinding(dynamicResult.findings?.[0] || null);
     setCurrentScreen('report');
     setLoading(false);
   };

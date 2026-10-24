@@ -80,7 +80,8 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             {[
               { label: 'Vulnerable demo', target: 'sample:vulnerable', tone: 'danger' },
               { label: 'Hardened demo', target: 'sample:clean', tone: 'success' },
-              { label: 'Live example.com', target: 'https://example.com', tone: 'default' },
+              { label: 'Shipsafe-core', target: 'https://github.com/Devshridhar/Shipsafe-core', tone: 'danger' },
+              { label: 'Live google.com', target: 'https://google.com', tone: 'success' },
               { label: 'GitHub bottle', target: 'bottlepy/bottle', tone: 'default' },
             ].map(p => (
               <button
