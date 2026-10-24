@@ -60,6 +60,8 @@ export const App: React.FC = () => {
         const data = await res.json();
         if (res.ok) {
           setScan(data);
+          await new Promise((r) => setTimeout(r, 800));
+          setCurrentScreen('findings');
         } else {
           setError(data.error ?? 'Scan execution failed');
         }
@@ -74,6 +76,7 @@ export const App: React.FC = () => {
     // Fallback simulation
     await new Promise((r) => setTimeout(r, 1200));
     setScan({ ...MOCK_VULNERABLE_SCAN, target: url, scan_time: new Date().toISOString() });
+    setCurrentScreen('findings');
     setLoading(false);
   };
 
@@ -139,6 +142,7 @@ export const App: React.FC = () => {
                 <ScanProgress
                   target={scan.target}
                   isLiveScanning={loading}
+                  totalFindings={scan.findings.length}
                   onCancel={() => setCurrentScreen('home')}
                   onViewResults={() => setCurrentScreen('findings')}
                 />

@@ -42,6 +42,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
       component: (
         <ScanProgress
           target={scan.target}
+          totalFindings={scan.findings.length}
           onCancel={() => onSelectScreen('home')}
           onViewResults={() => onSelectScreen('findings')}
         />

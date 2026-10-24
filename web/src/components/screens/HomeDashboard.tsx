@@ -68,7 +68,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 type="text"
                 value={inputUrl}
                 onChange={(e) => setInputUrl(e.target.value)}
-                placeholder="Paste GitHub repository (e.g. user/repo) or URL..."
+                placeholder="Paste website (https://example.com) or GitHub repo (bottlepy/bottle)..."
                 className="w-full pl-10 pr-4 py-2.5 text-xs md:text-sm bg-white border border-[#E7E9F3] rounded-xl focus:outline-none focus:border-[#6554F0] focus:ring-2 focus:ring-[#6554F0]/20 text-[#18213D] placeholder-[#77819D] shadow-xs"
               />
             </div>
@@ -84,6 +84,20 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           {/* Presets */}
           <div className="mt-3 flex items-center gap-2 flex-wrap text-xs text-[#77819D]">
             <span>Try sample:</span>
+            <button
+              type="button"
+              onClick={() => onStartScan('https://example.com')}
+              className="px-2.5 py-1 rounded-lg bg-white border border-[#E7E9F3] hover:border-[#6554F0] hover:text-[#6554F0] transition-colors font-mono text-[11px]"
+            >
+              https://example.com
+            </button>
+            <button
+              type="button"
+              onClick={() => onStartScan('bottlepy/bottle')}
+              className="px-2.5 py-1 rounded-lg bg-white border border-[#E7E9F3] hover:border-[#6554F0] hover:text-[#6554F0] transition-colors font-mono text-[11px]"
+            >
+              bottlepy/bottle
+            </button>
             <button
               type="button"
               onClick={() => onStartScan('sample:vulnerable')}
