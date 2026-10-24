@@ -4,7 +4,12 @@
 
 @layer base {
   html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
-  body { @apply bg-background text-ink font-body; overflow-x: hidden; }
+  body {
+    background-color: #F9F9F9;
+    color: #1A1A1A;
+    font-family: 'Inter', system-ui, sans-serif;
+    overflow-x: hidden;
+  }
   ::selection { background-color: #85c4eb; color: #1A1A1A; }
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: #F9F9F9; }
