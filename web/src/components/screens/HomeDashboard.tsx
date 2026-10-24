@@ -76,14 +76,24 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </form>
 
           <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-[#77819D]">
-            <span>Try sample:</span>
+            <span>Demo targets:</span>
             {[
-              { label: 'google.com', target: 'https://google.com' },
-              { label: 'example.com', target: 'https://example.com' },
-              { label: 'bottlepy/bottle', target: 'bottlepy/bottle' },
-              { label: 'sample:vulnerable', target: 'sample:vulnerable' },
+              { label: 'Vulnerable demo', target: 'sample:vulnerable', tone: 'danger' },
+              { label: 'Hardened demo', target: 'sample:clean', tone: 'success' },
+              { label: 'Live example.com', target: 'https://example.com', tone: 'default' },
+              { label: 'GitHub bottle', target: 'bottlepy/bottle', tone: 'default' },
             ].map(p => (
-              <button key={p.label} type="button" onClick={() => onStartScan(p.target)} className="px-2 py-0.5 rounded-lg bg-white border border-[#E7E9F3] hover:border-[#6554F0] hover:text-[#6554F0] font-mono text-[11px] transition-colors cursor-pointer">
+              <button
+                key={p.label}
+                type="button"
+                disabled={isLoading}
+                onClick={() => onStartScan(p.target)}
+                className={`px-2.5 py-1 rounded-lg bg-white border font-mono text-[11px] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  p.tone === 'danger' ? 'border-[#F45D75]/40 text-[#F45D75] hover:bg-[#F45D75]/10' :
+                  p.tone === 'success' ? 'border-[#16B887]/40 text-[#16B887] hover:bg-[#16B887]/10' :
+                  'border-[#E7E9F3] hover:border-[#6554F0] hover:text-[#6554F0]'
+                }`}
+              >
                 {p.label}
               </button>
             ))}

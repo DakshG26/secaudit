@@ -88,7 +88,7 @@ export const ScanProgress: React.FC<ScanProgressProps> = ({
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#6554F0] to-[#342D8C] text-xs font-semibold text-white shadow-md shadow-[#6554F0]/30 hover:scale-102 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isComplete ? <ShieldCheck className="w-4 h-4 text-[#16B887]" /> : null}
-              <span>Explore {totalFindings} Findings</span>
+               <span>View Security Report</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           )}

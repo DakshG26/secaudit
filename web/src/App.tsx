@@ -40,6 +40,7 @@ export const App: React.FC = () => {
       setScan(MOCK_CLEAN_SCAN);
       setSelectedFinding(null);
       setLoading(false);
+      setCurrentScreen('report');
       return;
     }
     if (url === 'sample:vulnerable' || url === 'vulnerable') {
@@ -47,6 +48,7 @@ export const App: React.FC = () => {
       setScan(MOCK_VULNERABLE_SCAN);
       setSelectedFinding(MOCK_VULNERABLE_SCAN.findings[0] || null);
       setLoading(false);
+      setCurrentScreen('report');
       return;
     }
 
@@ -59,10 +61,10 @@ export const App: React.FC = () => {
         });
         const data = await res.json();
         if (res.ok) {
-          setScan(data);
-          setSelectedFinding(data.findings?.[0] || null);
-          await new Promise((r) => setTimeout(r, 600));
-          setCurrentScreen('findings');
+           setScan(data);
+           setSelectedFinding(data.findings?.[0] || null);
+           await new Promise((r) => setTimeout(r, 600));
+           setCurrentScreen('report');
         } else {
           setError(data.error ?? 'Scan execution failed');
         }
@@ -78,7 +80,7 @@ export const App: React.FC = () => {
     const sim = { ...MOCK_VULNERABLE_SCAN, target: url, scan_time: new Date().toISOString() };
     setScan(sim);
     setSelectedFinding(sim.findings[0] || null);
-    setCurrentScreen('findings');
+    setCurrentScreen('report');
     setLoading(false);
   };
 
@@ -132,8 +134,8 @@ export const App: React.FC = () => {
                   target={displayTarget}
                   isLiveScanning={loading}
                   totalFindings={scan.findings.length}
-                  onCancel={() => setCurrentScreen('home')}
-                  onViewResults={() => setCurrentScreen('findings')}
+                   onCancel={() => { setLoading(false); setCurrentScreen('home'); }}
+                   onViewResults={() => setCurrentScreen('report')}
                 />
               )}
               {currentScreen === 'findings' && (

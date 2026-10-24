@@ -377,31 +377,38 @@ def _run_deps_rule(rule: dict, target_path: str, ignore_ids: set[str]) -> List[F
         except OSError:
             continue
 
+        unpinned = []
         for lineno, line in enumerate(lines, 1):
             stripped = line.strip()
             if not stripped or stripped.startswith("#") or stripped.startswith("-"):
                 continue
             # Unpinned: no == in the line (>= and <= are acceptable ranges but flagged)
             if "==" not in stripped:
-                finding_id = _next_id(rule["id"])
-                f = Finding(
-                    id=finding_id,
-                    rule_id=rule["id"],
-                    title=rule.get("title", rule["id"]),
-                    owasp=rule.get("owasp", "A03"),
-                    cwe=rule.get("cwe", "CWE-1104"),
-                    severity=rule.get("severity", "low"),
-                    confidence="confirmed",
-                    location=f"{req_file}:{lineno}",
-                    evidence=stripped,
-                    impact=rule.get("impact", ""),
-                    remediation=rule.get("fix", ""),
-                    fixed_code=rule.get("fixed_code", ""),
-                )
-                if rule["id"].upper() in ignore_ids:
-                    f.ignored = True
-                    f.ignore_reason = f"Rule {rule['id']} in .secauditignore"
-                findings.append(f)
+                unpinned.append((lineno, stripped))
+
+        if unpinned:
+            finding_id = _next_id(rule["id"])
+            first_line = unpinned[0][0]
+            pkg_names = [p[1].split()[0].split(";")[0].split(">")[0].split("<")[0] for p in unpinned]
+            sample_pkgs = ", ".join(pkg_names[:5]) + (f" (+{len(pkg_names)-5} more)" if len(pkg_names) > 5 else "")
+            f = Finding(
+                id=finding_id,
+                rule_id=rule["id"],
+                title=f"Unpinned Dependencies ({len(unpinned)} packages)",
+                owasp=rule.get("owasp", "A03"),
+                cwe=rule.get("cwe", "CWE-1104"),
+                severity=rule.get("severity", "low"),
+                confidence="confirmed",
+                location=f"{req_file}:{first_line}",
+                evidence="\n".join(p[1] for p in unpinned[:8]),
+                impact=f"{len(unpinned)} dependencies ({sample_pkgs}) lack version pins (==). A supply-chain compromise or breaking change could be silently introduced.",
+                remediation="Pin each package to a specific version (e.g. package==1.2.3) in requirements.txt.",
+                fixed_code="\n".join(f"{name}==1.0.0" for name in pkg_names[:4]),
+            )
+            if rule["id"].upper() in ignore_ids:
+                f.ignored = True
+                f.ignore_reason = f"Rule {rule['id']} in .secauditignore"
+            findings.append(f)
 
     return findings
 
