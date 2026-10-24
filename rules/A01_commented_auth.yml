@@ -7,7 +7,7 @@ severity: "high"
 confidence: "likely"
 exploitability: "trivial"
 type: "regex"
-pattern: "#.*(?:login_required|jwt_required|auth_required|@login|authenticate|verify_token)"
+pattern: "#\\s*(?:@(?:login|jwt|auth|token|admin|roles)_required|@login|authenticate\\(\\)|verify_token\\(\\))"
 file_extensions: ["py", "js", "ts"]
 flags: "IGNORECASE"
 impact: "An authentication guard has been commented out, leaving the endpoint unprotected."

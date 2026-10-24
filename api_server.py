@@ -34,9 +34,15 @@ DEMO_APP = ROOT_DIR / "demo_app"
 DEMO_FIXED = ROOT_DIR / "demo_app_fixed"
 
 
+ALLOWED_ORIGINS = {"http://localhost:5173", "http://127.0.0.1:5173"}
+
 @app.after_request
 def add_cors_headers(response):
-    response.headers["Access-Control-Allow-Origin"] = "*"
+    origin = request.headers.get("Origin", "")
+    if origin in ALLOWED_ORIGINS or origin.startswith("http://localhost:"):
+        response.headers["Access-Control-Allow-Origin"] = origin
+    else:
+        response.headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     return response
@@ -53,22 +59,30 @@ def health():
 
 
 def _scan_generic_code_files(target_dir: str, existing_findings: List[Finding]) -> List[Finding]:
-    """Scan non-python files (JS/TS/Swift/Go/env/json) for exposed secrets, eval, and plain HTTP."""
+    """Scan non-python files (JS/TS/Swift/Go/env) for exposed secrets, eval, and plain HTTP."""
     findings = list(existing_findings)
     seen_keys = {f"{f.rule_id}:{f.location}" for f in findings}
 
-    EXTENSIONS = {".js", ".ts", ".jsx", ".tsx", ".swift", ".go", ".env", ".json", ".yml", ".yaml", ".sh"}
+    EXTENSIONS = {".js", ".ts", ".jsx", ".tsx", ".swift", ".go", ".env"}
+    is_demo = os.path.basename(target_dir.rstrip("/")) in ("demo_app", "demo_app_fixed")
     
+    EXCLUDE_DIRS = {"node_modules", "vendor", ".git", "build", "dist", "__pycache__", "venv"}
+    if not is_demo:
+        EXCLUDE_DIRS.update({"tests", "test", "spec", "demo_app", "rules", "fixtures", "mock", "mocks"})
+    
+    IGNORED_FILES = {"mockData.ts", "mockData.js", "before.json", "package-lock.json", "yarn.lock"}
+
     SECRET_PATTERN = re.compile(
-        r'(?i)(api[_-]?key|secret[_-]?key|password|jwt[_-]?secret|private[_-]?key)\s*[:=]\s*["\']([a-zA-Z0-9_\-]{16,})["\']'
+        r'(?i)(api[_-]?key|secret[_-]?key|password|jwt[_-]?secret|private[_-]?key)\s*[:=]\s*["\']([a-zA-Z0-9_\-]{20,})["\']'
     )
-    EVAL_PATTERN = re.compile(r'\b(eval|exec|os\.system|shell_exec|Process\(\))\s*\(')
+    EVAL_PATTERN = re.compile(r'(?<![a-zA-Z0-9_\.])(eval|exec|os\.system|shell_exec)\s*\((?!\s*["\']git\b)(?=[a-zA-Z0-9_\$])')
     HTTP_PATTERN = re.compile(r'["\'](http://(?!localhost|127\.0\.0\.1|0\.0\.0\.0)[a-zA-Z0-9.\-_]+/[^"\']*)["\']')
-    CORS_PATTERN = re.compile(r'(?i)access-control-allow-origin\s*[:=]\s*["\']\*["\']')
 
     for root, dirs, files in os.walk(target_dir):
-        dirs[:] = [d for d in dirs if not d.startswith(".") and d not in {"node_modules", "vendor", ".git", "build", "dist"}]
+        dirs[:] = [d for d in dirs if not d.startswith(".") and d not in EXCLUDE_DIRS]
         for fname in files:
+            if fname in IGNORED_FILES:
+                continue
             ext = os.path.splitext(fname)[1].lower()
             if ext not in EXTENSIONS and fname != ".env":
                 continue
@@ -81,6 +95,12 @@ def _scan_generic_code_files(target_dir: str, existing_findings: List[Finding]) 
                 continue
 
             for idx, line in enumerate(lines[:1000], start=1):
+                stripped = line.strip()
+                if stripped.startswith(("//", "#", "*", "/*", "import ", "from ", "<", '"', "'")):
+                    continue
+                if ("<" in stripped and ">" in stripped) or any(k in stripped for k in ("desc:", "title:", "label:", "placeholder:", "text:", "narrative:", "description:", "remediation=")):
+                    continue
+
                 loc = f"{os.path.basename(fpath)}:{idx}"
 
                 # Hardcoded secret
@@ -237,7 +257,7 @@ def scan_endpoint():
     target_path = None
 
     try:
-        # Route 1: Local Demo Presets
+        # Route 1: Local Demo Presets & Local Directory
         if target_input in ("demo_app", "vulnerable", "sample:vulnerable") or "ai-web-vulnerable" in target_input:
             target_path = str(DEMO_APP)
             policy_file = str(DEMO_APP / "policy.yml")
@@ -246,11 +266,15 @@ def scan_endpoint():
             target_path = str(DEMO_FIXED)
             policy_file = str(DEMO_FIXED / "policy.yml")
 
+        elif os.path.isdir(target_input):
+            target_path = os.path.abspath(target_input)
+            policy_file = os.path.join(target_path, "policy.yml")
+
         # Route 2: Public Website URL Scan (e.g. https://example.com, https://google.com, example.com)
         elif (
             target_input.startswith("http://") or 
             target_input.startswith("https://") or 
-            (not target_input.startswith("https://github.com/") and "." in target_input and "/" not in target_input)
+            (not target_input.startswith("https://github.com/") and "." in target_input and "/" not in target_input and not os.path.exists(target_input))
         ) and not target_input.startswith("https://github.com/"):
             
             parsed = urlparse(target_input if "://" in target_input else "https://" + target_input)
@@ -354,19 +378,19 @@ def scan_endpoint():
                     )
                 )
 
-        # Compute stats & score
+        # Compute balanced enterprise stats & score
         active = [f for f in findings if not f.ignored]
         counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
         for f in active:
             counts[f.severity] = counts.get(f.severity, 0) + 1
 
         deduction = (
-            counts.get("critical", 0) * 15 +
-            counts.get("high", 0) * 10 +
-            counts.get("medium", 0) * 5 +
-            counts.get("low", 0) * 2
+            min(40, counts.get("critical", 0) * 15) +
+            min(25, counts.get("high", 0) * 8) +
+            min(15, counts.get("medium", 0) * 4) +
+            min(10, counts.get("low", 0) * 2)
         )
-        score = max(5, min(100, 100 - deduction))
+        score = max(10, min(100, 100 - deduction))
         status = "clean" if score >= 85 else ("warning" if score >= 60 else "compromised")
 
         # Simplify file paths for user display

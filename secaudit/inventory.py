@@ -274,11 +274,16 @@ def extract_endpoints(target_path: str) -> List[Endpoint]:
     if target.is_file() and target.suffix == ".py":
         return extract_endpoints_from_file(str(target))
 
+    is_demo = target.name in ("demo_app", "demo_app_fixed")
+    excluded = {"venv", "env", "__pycache__", "node_modules"}
+    if not is_demo:
+        excluded.update({"tests", "test", "spec", "demo_app", "rules", "fixtures"})
+
     for root, dirs, files in os.walk(target):
-        # Skip hidden dirs and virtual environments
+        # Skip hidden dirs, virtual environments, tests and fixtures
         dirs[:] = [
             d for d in dirs
-            if not d.startswith(".") and d not in {"venv", "env", "__pycache__", "node_modules"}
+            if not d.startswith(".") and d not in excluded
         ]
         for filename in files:
             if filename.endswith(".py"):

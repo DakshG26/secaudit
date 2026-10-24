@@ -7,28 +7,36 @@ interface InteractiveFeaturesProps {
   onSelectTab: (tab: 'flows' | 'findings' | 'matrix' | 'endpoints') => void;
 }
 
+const ENGINE_STATUSES = [
+  { text: 'Parsing AST tree…', dot: 'bg-primary' },
+  { text: 'Matching 21 OWASP rules…', dot: 'bg-amber-500' },
+  { text: 'Building attack chains…', dot: 'bg-red-500' },
+  { text: 'Policy matrix verified ✓', dot: 'bg-emerald-500' },
+] as const;
+
+const STATUS_INTERVAL_MS = 2400;
+
 export const InteractiveFeatures: React.FC<InteractiveFeaturesProps> = ({ chains, onSelectTab }) => {
   const [stack, setStack] = useState(chains);
   useEffect(() => setStack(chains), [chains]);
 
+  const canShuffle = stack.length > 1;
+  const hasChains = stack.length > 0;
+
   const shuffle = () => {
-    if (stack.length < 2) return;
+    if (!canShuffle) return;
     setStack(prev => { const n = [...prev]; n.push(n.shift()!); return n; });
   };
 
   const [statusIdx, setStatusIdx] = useState(0);
-  const statuses = [
-    { text: 'Parsing AST tree…', dot: 'bg-primary' },
-    { text: 'Matching 21 OWASP rules…', dot: 'bg-amber-500' },
-    { text: 'Building attack chains…', dot: 'bg-red-500' },
-    { text: 'Policy matrix verified ✓', dot: 'bg-emerald-500' },
-  ];
   useEffect(() => {
-    const t = setInterval(() => setStatusIdx(i => (i + 1) % statuses.length), 2400);
-    return () => clearInterval(t);
-  }, [statuses.length]);
+    const timer = window.setInterval(() => {
+      setStatusIdx((index) => (index + 1) % ENGINE_STATUSES.length);
+    }, STATUS_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, []);
 
-  const cur = statuses[statusIdx];
+  const cur = ENGINE_STATUSES[statusIdx] ?? ENGINE_STATUSES[0];
 
   return (
     <section className="py-20 bg-surface border-y border-divider">
@@ -47,7 +55,13 @@ export const InteractiveFeatures: React.FC<InteractiveFeaturesProps> = ({ chains
               <span className="text-xs font-mono uppercase tracking-wider text-primary flex items-center gap-1.5">
                 <Network className="w-4 h-4" /> Attack Paths
               </span>
-              <button onClick={shuffle} className="text-[10px] font-mono text-muted hover:text-primary border border-divider px-2 py-0.5 rounded-lg transition cursor-pointer">
+              <button
+                type="button"
+                onClick={shuffle}
+                disabled={!canShuffle}
+                aria-label={canShuffle ? 'Show the next attack path' : 'No additional attack paths available'}
+                className="text-[10px] font-mono text-muted hover:text-primary border border-divider px-2 py-0.5 rounded-lg transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-muted"
+              >
                 Next ↻
               </button>
             </div>
@@ -56,15 +70,20 @@ export const InteractiveFeatures: React.FC<InteractiveFeaturesProps> = ({ chains
             {stack.length > 0 ? (
               <div className="space-y-2">
                 {stack.slice(0, 3).map((c, i) => (
-                  <div key={c.id} style={{ transform: `scale(${1 - i * 0.03})`, opacity: 1 - i * 0.25 }}
+                  <button
+                    key={c.id}
+                    type="button"
                     onClick={() => onSelectTab('flows')}
-                    className="p-3 rounded-xl border-2 border-red-100 bg-red-50 cursor-pointer hover:border-red-200 transition-colors">
+                    aria-label={`View attack path ${c.id}: ${c.name}`}
+                    style={{ transform: `scale(${1 - i * 0.03})`, opacity: 1 - i * 0.25 }}
+                    className="w-full p-3 rounded-xl border-2 border-red-100 bg-red-50 text-left cursor-pointer hover:border-red-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+                  >
                     <div className="flex justify-between text-[10px] font-mono mb-0.5">
                       <span className="text-red-700 font-bold">{c.id}</span>
                       <span className="text-red-600 uppercase">{c.severity}</span>
                     </div>
                     <p className="text-xs font-semibold text-ink line-clamp-1">{c.name}</p>
-                  </div>
+                  </button>
                 ))}
               </div>
             ) : (
@@ -72,7 +91,13 @@ export const InteractiveFeatures: React.FC<InteractiveFeaturesProps> = ({ chains
                 No attack chains found in this scan.
               </div>
             )}
-            <button onClick={() => onSelectTab('flows')} className="mt-5 text-xs font-mono text-primary hover:text-primary-dark flex items-center gap-1 lift-on-hover">
+            <button
+              type="button"
+              onClick={() => onSelectTab('flows')}
+              disabled={!hasChains}
+              aria-label={hasChains ? 'View all attack chains' : 'No attack chains available'}
+              className="mt-5 text-xs font-mono text-primary hover:text-primary-dark flex items-center gap-1 lift-on-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-primary"
+            >
               View all chains <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -103,7 +128,7 @@ export const InteractiveFeatures: React.FC<InteractiveFeaturesProps> = ({ chains
                 <div className="text-center" style={{ animationDelay: '0.5s' }}><p className="text-emerald-600 animate-pulse">@login</p><p className="text-muted">auth OK</p></div>
                 <div className="text-center" style={{ animationDelay: '1s' }}><p className="text-red-600 animate-pulse">eval()</p><p className="text-muted">flagged!</p></div>
               </div>
-              <div className="flex items-center gap-2 border-t border-divider pt-2 text-[10px] font-mono">
+                <div className="flex items-center gap-2 border-t border-divider pt-2 text-[10px] font-mono" role="status" aria-live="polite">
                 <span className={`w-2 h-2 rounded-full ${cur.dot}`} />
                 <span className="text-muted">{cur.text}</span>
               </div>
@@ -136,7 +161,12 @@ export const InteractiveFeatures: React.FC<InteractiveFeaturesProps> = ({ chains
               </div>
             </div>
 
-            <button onClick={() => onSelectTab('matrix')} className="mt-5 text-xs font-mono text-primary hover:text-primary-dark flex items-center gap-1 lift-on-hover">
+            <button
+              type="button"
+              onClick={() => onSelectTab('matrix')}
+              aria-label="View full access control matrix"
+              className="mt-5 text-xs font-mono text-primary hover:text-primary-dark flex items-center gap-1 lift-on-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            >
               View full matrix <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>

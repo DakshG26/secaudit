@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   CheckCircle2, 
   CircleDot, 
@@ -19,6 +19,19 @@ interface ScanProgressProps {
   totalFindings?: number;
 }
 
+type StepStatus = 'completed' | 'in-progress' | 'pending';
+
+const INITIAL_PROGRESS = 12;
+const MAX_LIVE_PROGRESS = 92;
+
+const PIPELINE_STEPS: Array<{ label: string; completeAt: number; startAt: number }> = [
+  { label: 'Collecting endpoints & route topology', startAt: 0, completeAt: 20 },
+  { label: 'Static code & AST security analysis', startAt: 20, completeAt: 40 },
+  { label: 'Checking configurations & HTTP headers', startAt: 40, completeAt: 60 },
+  { label: 'Scanning OWASP Top 10 vulnerabilities', startAt: 60, completeAt: 92 },
+  { label: 'Generating attack chains & remediation report', startAt: 92, completeAt: 100 },
+];
+
 export const ScanProgress: React.FC<ScanProgressProps> = ({
   onCancel,
   onViewResults,
@@ -26,32 +39,45 @@ export const ScanProgress: React.FC<ScanProgressProps> = ({
   isLiveScanning = false,
   totalFindings = 0,
 }) => {
-  const [progress, setProgress] = useState(isLiveScanning ? 25 : 100);
+  const [progress, setProgress] = useState(() => (isLiveScanning ? INITIAL_PROGRESS : 100));
 
   useEffect(() => {
-    if (isLiveScanning) {
-      setProgress(15);
-      const interval = setInterval(() => {
-        setProgress((prev) => (prev < 92 ? prev + Math.floor(Math.random() * 8 + 3) : prev));
-      }, 350);
-      return () => clearInterval(interval);
-    } else {
+    if (!isLiveScanning) {
       setProgress(100);
+      return undefined;
     }
+
+    // Reset when a new live run starts, then stop at a truthful "finishing" state
+    // until the caller confirms completion through isLiveScanning.
+    setProgress(INITIAL_PROGRESS);
+    const interval = window.setInterval(() => {
+      setProgress((previous) => Math.min(MAX_LIVE_PROGRESS, previous + 4));
+    }, 350);
+
+    return () => window.clearInterval(interval);
   }, [isLiveScanning]);
 
-  const isComplete = !isLiveScanning && progress === 100;
+  // The prop is the source of truth. This avoids a one-render flash of an old
+  // percentage when the parent finishes a scan and flips isLiveScanning off.
+  const isComplete = !isLiveScanning;
+  const displayedProgress = isComplete
+    ? 100
+    : Math.max(0, Math.min(MAX_LIVE_PROGRESS, Math.round(progress)));
+  const isFinalizing = !isComplete && displayedProgress >= MAX_LIVE_PROGRESS;
+  const findingsCount = Number.isFinite(totalFindings) ? Math.max(0, totalFindings) : 0;
 
-  const steps = [
-    { label: 'Collecting endpoints & route topology', status: 'completed' },
-    { label: 'Static code & AST security analysis', status: 'completed' },
-    { label: 'Checking configurations & HTTP headers', status: 'completed' },
-    { label: 'Scanning OWASP Top 10 vulnerabilities', status: isComplete ? 'completed' : 'in-progress' },
-    { label: 'Generating attack chains & remediation report', status: isComplete ? 'completed' : 'pending' },
-  ];
+  const steps = PIPELINE_STEPS.map((step) => {
+    let status: StepStatus = 'pending';
+    if (isComplete || displayedProgress >= step.completeAt) {
+      status = 'completed';
+    } else if (displayedProgress >= step.startAt) {
+      status = 'in-progress';
+    }
+    return { ...step, status };
+  });
 
   const circumference = 2 * Math.PI * 44;
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
+  const strokeDashoffset = circumference - (displayedProgress / 100) * circumference;
 
   return (
     <div className="rounded-2xl bg-[#0E1326] text-white p-6 md:p-8 border border-[#1E2648] shadow-2xl relative overflow-hidden animate-in fade-in duration-300">
@@ -59,7 +85,7 @@ export const ScanProgress: React.FC<ScanProgressProps> = ({
       <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-[#66D9F5]/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header */}
-      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-[#1E2648]">
+      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-[#1E2648]" aria-live="polite">
         <div>
           <div className="flex items-center gap-2">
             <span className={`w-2.5 h-2.5 rounded-full ${isComplete ? 'bg-[#16B887]' : 'bg-[#66D9F5] animate-ping'}`} />
@@ -79,6 +105,8 @@ export const ScanProgress: React.FC<ScanProgressProps> = ({
           {isLiveScanning && onCancel && (
             <button
               onClick={onCancel}
+              type="button"
+              aria-label="Cancel active security scan"
               className="px-4 py-2 rounded-xl bg-[#151B38] hover:bg-[#1E2648] border border-[#2A3460] text-xs font-medium text-[#F45D75] transition-all flex items-center gap-2 cursor-pointer"
             >
               <XOctagon className="w-3.5 h-3.5" /> Cancel
@@ -87,12 +115,15 @@ export const ScanProgress: React.FC<ScanProgressProps> = ({
           {onViewResults && (
             <button
               onClick={onViewResults}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#6554F0] to-[#342D8C] text-xs font-semibold text-white shadow-lg shadow-[#6554F0]/30 hover:scale-[1.02] transition-all flex items-center gap-2 cursor-pointer"
+              type="button"
+              disabled={!isComplete}
+              aria-label={isComplete ? `Explore ${findingsCount} findings and attack flows` : 'Findings will be available when the scan finishes'}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#6554F0] to-[#342D8C] text-xs font-semibold text-white shadow-lg shadow-[#6554F0]/30 hover:scale-[1.02] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               {isComplete ? (
                 <>
                   <ShieldCheck className="w-4 h-4 text-[#16B887]" />
-                  <span>Explore {totalFindings} Findings & Flows</span>
+                  <span>Explore {findingsCount} Findings &amp; Flows</span>
                 </>
               ) : (
                 <>
@@ -108,7 +139,15 @@ export const ScanProgress: React.FC<ScanProgressProps> = ({
       {/* Main Grid: Circular Ring & Phases */}
       <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 mt-7">
         <div className="lg:col-span-4 bg-[#151B38]/80 backdrop-blur-md rounded-xl border border-[#1E2648] p-6 flex flex-col items-center justify-center text-center">
-          <div className="relative w-40 h-40 flex items-center justify-center">
+          <div
+            className="relative w-40 h-40 flex items-center justify-center"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={displayedProgress}
+            aria-valuetext={`${displayedProgress}%${isComplete ? ', audit ready' : isFinalizing ? ', finalizing scan' : ', in progress'}`}
+            aria-label="Security audit progress"
+          >
             <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
               <circle cx="50" cy="50" r="44" stroke="#1E2648" strokeWidth="8" fill="transparent" />
               <circle
@@ -123,7 +162,7 @@ export const ScanProgress: React.FC<ScanProgressProps> = ({
               />
             </svg>
             <div className="absolute flex flex-col items-center justify-center">
-              <span className="text-4xl font-extrabold text-white tracking-tight">{progress}%</span>
+              <span className="text-4xl font-extrabold text-white tracking-tight">{displayedProgress}%</span>
               <span className={`text-[11px] font-mono ${isComplete ? 'text-[#16B887]' : 'text-[#66D9F5]'}`}>
                 {isComplete ? 'Audit Ready' : 'In Progress'}
               </span>
@@ -132,8 +171,10 @@ export const ScanProgress: React.FC<ScanProgressProps> = ({
           <div className="mt-4 text-xs text-[#8F9CAE]">
             {isComplete ? (
               <span className="text-[#16B887] font-semibold">100% complete — all checks executed</span>
+            ) : isFinalizing ? (
+              <span className="text-[#66D9F5] font-semibold">Finalizing report — waiting for scan engine</span>
             ) : (
-              <>Estimated remaining: <span className="text-white font-mono font-medium">~3s</span></>
+              <>Progress updates as each audit stage completes</>
             )}
           </div>
         </div>

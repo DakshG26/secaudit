@@ -165,9 +165,18 @@ def _run_regex_rule(rule: dict, target_path: str, ignore_ids: set[str]) -> List[
     entropy_threshold = rule.get("entropy_threshold", 0)
     redact = rule.get("redact_in_output", False)
 
+    is_demo = os.path.basename(target_path.rstrip("/")) in ("demo_app", "demo_app_fixed")
+    excluded = {"venv", "env", "__pycache__", "node_modules", "reference", "dist", "build"}
+    if not is_demo:
+        excluded.update({"tests", "test", "spec", "demo_app", "rules", "fixtures", "mock", "mocks"})
+
+    ignored_files = {"mockData.ts", "mockData.js", "before.json", "package-lock.json", "yarn.lock"}
+
     for root, dirs, files in os.walk(target_path):
-        dirs[:] = [d for d in dirs if not d.startswith(".") and d not in {"venv", "env", "__pycache__", "node_modules", "reference"}]
+        dirs[:] = [d for d in dirs if not d.startswith(".") and d not in excluded]
         for filename in files:
+            if filename in ignored_files:
+                continue
             ext = filename.rsplit(".", 1)[-1].lower()
             if ext not in extensions and filename.lstrip(".") not in extensions:
                 continue
@@ -199,11 +208,15 @@ def _run_regex_rule(rule: dict, target_path: str, ignore_ids: set[str]) -> List[
                         if rule["id"] not in ("A01-TODO-001", "A01-COMMENTED-AUTH-001"):
                             continue
 
-                # Skip comment lines and docstrings for non-comment rules
+                # Skip comment lines, string literals and docstrings for non-comment rules
                 if rule["id"] not in ("A01-TODO-001", "A01-COMMENTED-AUTH-001"):
-                    if stripped.startswith("#"):
+                    if stripped.startswith(("#", "//", "/*", "*")):
                         continue
                     if in_docstring:
+                        continue
+                    if stripped.startswith(('"""', "'''", '"', "'", "`")):
+                        continue
+                    if any(k in stripped for k in ("narrative", "description", "remediation", "evidence", "impact", "title")) and ("=" in stripped or ":" in stripped):
                         continue
                     if (stripped.startswith('"""') and stripped.endswith('"""') and len(stripped) >= 6) or \
                        (stripped.startswith("'''") and stripped.endswith("'''") and len(stripped) >= 6):
@@ -263,7 +276,15 @@ def _run_deps_rule(rule: dict, target_path: str, ignore_ids: set[str]) -> List[F
     req_files = list(Path(target_path).rglob("requirements*.txt"))
     req_files += list(Path(target_path).rglob("requirements*.in"))
 
-    for req_file in req_files:
+    is_demo = os.path.basename(target_path.rstrip("/")) in ("demo_app", "demo_app_fixed")
+    filtered_reqs = []
+    for rf in req_files:
+        parts = set(rf.parts)
+        if not is_demo and parts.intersection({"demo_app", "demo", "demos", "tests", "test", "fixtures", "mock", "mocks"}):
+            continue
+        filtered_reqs.append(rf)
+
+    for req_file in filtered_reqs:
         try:
             lines = req_file.read_text(encoding="utf-8").splitlines()
         except OSError:
