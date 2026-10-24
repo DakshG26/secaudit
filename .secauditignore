@@ -1,0 +1,7 @@
+# .secauditignore — suppress findings by rule ID
+# One rule ID per line. Suppressed findings are still listed in the report
+# under the "Ignored Findings" section for transparency.
+#
+# Example:
+# A03-UNPINNED-001
+# A05-NOINPUT-001

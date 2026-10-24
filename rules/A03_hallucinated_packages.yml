@@ -1,0 +1,22 @@
+id: "A03-PYPI-001"
+title: "Hallucinated (Non-Existent) PyPI Package"
+owasp: "A03"
+owasp_name: "Software and Data Integrity Failures"
+cwe: "CWE-1357"
+severity: "high"
+confidence: "confirmed"
+exploitability: "easy"
+type: "pypi"
+# Only checked when --check-pypi flag is passed; makes a HEAD request to PyPI JSON API
+pypi_api_url: "https://pypi.org/pypi/{package}/json"
+impact: |
+  Packages named in requirements.txt that do not exist on PyPI are likely AI hallucinations.
+  An attacker can register these names on PyPI and supply malicious code that gets installed
+  automatically (dependency confusion / typosquatting attack).
+fix: "Remove the non-existent package and replace with the correct, verified package name."
+fixed_code: |
+  # Before (vulnerable):
+  ai-helper-utils-xyz   # does not exist on PyPI
+
+  # After (fixed):
+  # Remove entirely, or find the real package name on pypi.org

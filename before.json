@@ -1,0 +1,497 @@
+{
+  "target_path": "/Users/daksh/Downloads/new/demo_app",
+  "scan_time": "2026-10-24T07:33:10.989426+00:00",
+  "stats": {
+    "critical": 5,
+    "high": 5,
+    "medium": 4,
+    "low": 6,
+    "info": 0
+  },
+  "findings": [
+    {
+      "id": "A01-CORS-001-1",
+      "rule_id": "A01-CORS-001",
+      "title": "CORS Wildcard with Credentials",
+      "owasp": "A01",
+      "cwe": "CWE-942",
+      "severity": "high",
+      "confidence": "likely",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:38",
+      "evidence": "response.headers[\"Access-Control-Allow-Origin\"] = \"*\"",
+      "impact": "Any origin can make credentialed cross-site requests to this API.\nCombined with Access-Control-Allow-Credentials: true, this enables\ncross-site request forgery and session theft from any website.\n",
+      "remediation": "Replace the wildcard with an explicit allowlist of trusted origins.\nNever combine Access-Control-Allow-Origin: * with Allow-Credentials: true.\n",
+      "fixed_code": "# Before (vulnerable):\nresponse.headers[\"Access-Control-Allow-Origin\"] = \"*\"\nresponse.headers[\"Access-Control-Allow-Credentials\"] = \"true\"\n\n# After (fixed):\nALLOWED_ORIGINS = {\"https://app.example.com\"}\norigin = request.headers.get(\"Origin\", \"\")\nif origin in ALLOWED_ORIGINS:\n    response.headers[\"Access-Control-Allow-Origin\"] = origin\n    response.headers[\"Vary\"] = \"Origin\"\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A01-IDOR-001-1",
+      "rule_id": "A01-IDOR-001",
+      "title": "Insecure Direct Object Reference (IDOR)",
+      "owasp": "A01",
+      "cwe": "CWE-639",
+      "severity": "high",
+      "confidence": "possible",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:59",
+      "evidence": "GET /user/<int:user_id> — no ownership check found in handler body",
+      "impact": "An attacker can access or modify records belonging to any other user by changing the ID in the URL.",
+      "remediation": "Verify that the authenticated user owns the requested resource before returning it.\nCompare session user ID to the requested resource's owner ID.\n",
+      "fixed_code": "# Before (vulnerable):\n@app.route('/user/<int:user_id>')\ndef get_user(user_id):\n    return jsonify(db.get_user(user_id))  # No ownership check\n\n# After (fixed):\n@app.route('/user/<int:user_id>')\n@login_required\ndef get_user(user_id):\n    if current_user.id != user_id and not current_user.is_admin:\n        abort(403)\n    return jsonify(db.get_user(user_id))\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A01-NOAUTH-001-1",
+      "rule_id": "A01-NOAUTH-001",
+      "title": "Route with No Authentication",
+      "owasp": "A01",
+      "cwe": "CWE-306",
+      "severity": "critical",
+      "confidence": "likely",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:52",
+      "evidence": "GET /admin — handler: admin_panel — auth decorators: none",
+      "impact": "Any unauthenticated user can access this endpoint and its data.",
+      "remediation": "Add an authentication decorator (e.g. @login_required, @jwt_required) before the route handler.",
+      "fixed_code": "# Before (vulnerable):\n@app.route('/admin')\ndef admin_panel():\n    return jsonify(admin_data)\n\n# After (fixed):\n@app.route('/admin')\n@login_required\ndef admin_panel():\n    return jsonify(admin_data)\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A02-DEBUG-001-1",
+      "rule_id": "A02-DEBUG-001",
+      "title": "Flask/FastAPI Debug Mode Enabled",
+      "owasp": "A02",
+      "cwe": "CWE-94",
+      "severity": "high",
+      "confidence": "confirmed",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:149",
+      "evidence": "app.run(debug=True, host=\"0.0.0.0\", port=5000)",
+      "impact": "Flask debug mode exposes an interactive Werkzeug debugger console in the browser.\nAn attacker who triggers any exception gets a Python REPL with full server access.\n",
+      "remediation": "Set debug=False in production, or read from an environment variable.",
+      "fixed_code": "# Before (vulnerable):\napp.run(debug=True)\n\n# After (fixed):\nimport os\napp.run(debug=os.getenv('FLASK_DEBUG', 'false').lower() == 'true')\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A03-UNPINNED-001-1",
+      "rule_id": "A03-UNPINNED-001",
+      "title": "Unpinned Dependencies",
+      "owasp": "A03",
+      "cwe": "CWE-1104",
+      "severity": "low",
+      "confidence": "confirmed",
+      "location": "/Users/daksh/Downloads/new/demo_app/requirements.txt:4",
+      "evidence": "flask",
+      "impact": "Unpinned dependencies are resolved at install time to whatever the latest version is.\nA supply-chain attack or accidentally breaking change in a dependency can be silently\nintroduced into the production build.\n",
+      "remediation": "Pin every dependency to an exact version (==) or a narrow range (>=x,<x+1).",
+      "fixed_code": "# Before (vulnerable):\nflask\nrequests\n\n# After (fixed):\nflask==3.0.3\nrequests==2.32.3\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A03-UNPINNED-001-2",
+      "rule_id": "A03-UNPINNED-001",
+      "title": "Unpinned Dependencies",
+      "owasp": "A03",
+      "cwe": "CWE-1104",
+      "severity": "low",
+      "confidence": "confirmed",
+      "location": "/Users/daksh/Downloads/new/demo_app/requirements.txt:5",
+      "evidence": "requests",
+      "impact": "Unpinned dependencies are resolved at install time to whatever the latest version is.\nA supply-chain attack or accidentally breaking change in a dependency can be silently\nintroduced into the production build.\n",
+      "remediation": "Pin every dependency to an exact version (==) or a narrow range (>=x,<x+1).",
+      "fixed_code": "# Before (vulnerable):\nflask\nrequests\n\n# After (fixed):\nflask==3.0.3\nrequests==2.32.3\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A03-UNPINNED-001-3",
+      "rule_id": "A03-UNPINNED-001",
+      "title": "Unpinned Dependencies",
+      "owasp": "A03",
+      "cwe": "CWE-1104",
+      "severity": "low",
+      "confidence": "confirmed",
+      "location": "/Users/daksh/Downloads/new/demo_app/requirements.txt:6",
+      "evidence": "PyJWT",
+      "impact": "Unpinned dependencies are resolved at install time to whatever the latest version is.\nA supply-chain attack or accidentally breaking change in a dependency can be silently\nintroduced into the production build.\n",
+      "remediation": "Pin every dependency to an exact version (==) or a narrow range (>=x,<x+1).",
+      "fixed_code": "# Before (vulnerable):\nflask\nrequests\n\n# After (fixed):\nflask==3.0.3\nrequests==2.32.3\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A03-UNPINNED-001-4",
+      "rule_id": "A03-UNPINNED-001",
+      "title": "Unpinned Dependencies",
+      "owasp": "A03",
+      "cwe": "CWE-1104",
+      "severity": "low",
+      "confidence": "confirmed",
+      "location": "/Users/daksh/Downloads/new/demo_app/requirements.txt:7",
+      "evidence": "flask-sqlalchemy",
+      "impact": "Unpinned dependencies are resolved at install time to whatever the latest version is.\nA supply-chain attack or accidentally breaking change in a dependency can be silently\nintroduced into the production build.\n",
+      "remediation": "Pin every dependency to an exact version (==) or a narrow range (>=x,<x+1).",
+      "fixed_code": "# Before (vulnerable):\nflask\nrequests\n\n# After (fixed):\nflask==3.0.3\nrequests==2.32.3\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A03-UNPINNED-001-5",
+      "rule_id": "A03-UNPINNED-001",
+      "title": "Unpinned Dependencies",
+      "owasp": "A03",
+      "cwe": "CWE-1104",
+      "severity": "low",
+      "confidence": "confirmed",
+      "location": "/Users/daksh/Downloads/new/demo_app/requirements.txt:8",
+      "evidence": "pycryptodome",
+      "impact": "Unpinned dependencies are resolved at install time to whatever the latest version is.\nA supply-chain attack or accidentally breaking change in a dependency can be silently\nintroduced into the production build.\n",
+      "remediation": "Pin every dependency to an exact version (==) or a narrow range (>=x,<x+1).",
+      "fixed_code": "# Before (vulnerable):\nflask\nrequests\n\n# After (fixed):\nflask==3.0.3\nrequests==2.32.3\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A03-UNPINNED-001-6",
+      "rule_id": "A03-UNPINNED-001",
+      "title": "Unpinned Dependencies",
+      "owasp": "A03",
+      "cwe": "CWE-1104",
+      "severity": "low",
+      "confidence": "confirmed",
+      "location": "/Users/daksh/Downloads/new/demo_app/requirements.txt:9",
+      "evidence": "ai-helper-utils-xyz   # hallucinated package — does not exist on PyPI",
+      "impact": "Unpinned dependencies are resolved at install time to whatever the latest version is.\nA supply-chain attack or accidentally breaking change in a dependency can be silently\nintroduced into the production build.\n",
+      "remediation": "Pin every dependency to an exact version (==) or a narrow range (>=x,<x+1).",
+      "fixed_code": "# Before (vulnerable):\nflask\nrequests\n\n# After (fixed):\nflask==3.0.3\nrequests==2.32.3\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A04-SECRET-001-1",
+      "rule_id": "A04-SECRET-001",
+      "title": "Hardcoded Secret or API Key",
+      "owasp": "A04",
+      "cwe": "CWE-798",
+      "severity": "high",
+      "confidence": "likely",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:29",
+      "evidence": "SECRET_KEY = \"ha***********************34\"  # noqa: S105",
+      "impact": "Hardcoded secrets committed to source control are trivially discoverable by anyone\nwith repository access, or via git history even after deletion.\n",
+      "remediation": "Move secrets to environment variables or a secret manager. Add .env to .gitignore.",
+      "fixed_code": "# Before (vulnerable):\nSECRET_KEY = \"my-super-secret-key-1234\"\n\n# After (fixed):\nimport os\nSECRET_KEY = os.environ[\"SECRET_KEY\"]\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A04-WEAKHASH-001-1",
+      "rule_id": "A04-WEAKHASH-001",
+      "title": "MD5 or SHA1 Used for Password Hashing",
+      "owasp": "A04",
+      "cwe": "CWE-916",
+      "severity": "high",
+      "confidence": "likely",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:85",
+      "evidence": "return hashlib.md5(password.encode()).hexdigest()  # noqa: S324",
+      "impact": "MD5 and SHA1 are fast hash functions not designed for password storage.\nAn attacker with the hash database can crack most passwords in minutes\nusing a GPU and rainbow tables.\n",
+      "remediation": "Use bcrypt, scrypt, or PBKDF2-SHA256 with a per-user salt and high iteration count.",
+      "fixed_code": "# Before (vulnerable):\nhashed = hashlib.md5(password.encode()).hexdigest()\n\n# After (fixed — using PBKDF2):\nimport hashlib, os\nsalt = os.urandom(16)\nhashed = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 260000)\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A04-JWT-001-1",
+      "rule_id": "A04-JWT-001",
+      "title": "JWT with 'none' Algorithm or Absent Verification",
+      "owasp": "A04",
+      "cwe": "CWE-347",
+      "severity": "critical",
+      "confidence": "confirmed",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:131",
+      "evidence": "token = jwt.encode(payload, \"\", algorithm=\"none\")",
+      "impact": "The 'none' algorithm disables JWT signature verification entirely.\nAny attacker can forge a token with arbitrary claims (e.g. admin role)\nwithout knowing the secret key.\n",
+      "remediation": "Always specify a strong algorithm (HS256, RS256) and verify the signature.",
+      "fixed_code": "# Before (vulnerable):\ntoken = jwt.encode(payload, \"\", algorithm=\"none\")\ndata = jwt.decode(token, options={\"verify_signature\": False})\n\n# After (fixed):\nimport os\nSECRET = os.environ[\"JWT_SECRET\"]\ntoken = jwt.encode(payload, SECRET, algorithm=\"HS256\")\ndata = jwt.decode(token, SECRET, algorithms=[\"HS256\"])\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A04-JWT-001-2",
+      "rule_id": "A04-JWT-001",
+      "title": "JWT with 'none' Algorithm or Absent Verification",
+      "owasp": "A04",
+      "cwe": "CWE-347",
+      "severity": "critical",
+      "confidence": "confirmed",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:141",
+      "evidence": "data = jwt.decode(token, options={\"verify_signature\": False})",
+      "impact": "The 'none' algorithm disables JWT signature verification entirely.\nAny attacker can forge a token with arbitrary claims (e.g. admin role)\nwithout knowing the secret key.\n",
+      "remediation": "Always specify a strong algorithm (HS256, RS256) and verify the signature.",
+      "fixed_code": "# Before (vulnerable):\ntoken = jwt.encode(payload, \"\", algorithm=\"none\")\ndata = jwt.decode(token, options={\"verify_signature\": False})\n\n# After (fixed):\nimport os\nSECRET = os.environ[\"JWT_SECRET\"]\ntoken = jwt.encode(payload, SECRET, algorithm=\"HS256\")\ndata = jwt.decode(token, SECRET, algorithms=[\"HS256\"])\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A05-EXEC-001-1",
+      "rule_id": "A05-EXEC-001",
+      "title": "Dangerous Code Execution (eval/exec/os.system)",
+      "owasp": "A05",
+      "cwe": "CWE-78",
+      "severity": "critical",
+      "confidence": "likely",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:120",
+      "evidence": "result = eval(expr)  # noqa: S307",
+      "impact": "Allows arbitrary code or OS command execution if user-controlled data reaches this call.\nAn attacker can read files, exfiltrate data, install malware, or take over the server.\n",
+      "remediation": "- Replace eval() with ast.literal_eval() for safe literal parsing.\n- Replace os.system() with subprocess.run(shell=False, args=[...]).\n- Never pass user input to exec() or shell=True.\n",
+      "fixed_code": "# Before (vulnerable):\nresult = eval(request.args.get('expr'))\nos.system(f\"convert {user_input}.jpg output.png\")\n\n# After (fixed):\nimport ast\nresult = ast.literal_eval(request.args.get('expr'))  # literals only\n\nimport subprocess\nsubprocess.run([\"convert\", safe_filename, \"output.png\"], shell=False)\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A05-NOINPUT-001-1",
+      "rule_id": "A05-NOINPUT-001",
+      "title": "Missing Input Validation on Request Fields",
+      "owasp": "A05",
+      "cwe": "CWE-20",
+      "severity": "medium",
+      "confidence": "possible",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:69",
+      "evidence": "Inputs used: ['name'] — no validation found in handler",
+      "impact": "Request fields are used without type checking, length limits, or format validation, enabling injection or logic bypass.",
+      "remediation": "Validate and sanitise every input from request.args, request.form, and request.get_json()\nbefore using it in queries, file operations, or business logic.\n",
+      "fixed_code": "# Before (vulnerable):\nuser_id = request.args.get(\"id\")\ndb.query(f\"SELECT * FROM users WHERE id = {user_id}\")\n\n# After (fixed):\ntry:\n    user_id = int(request.args.get(\"id\", \"\"))\nexcept ValueError:\n    return jsonify({\"error\": \"id must be an integer\"}), 400\ndb.execute(\"SELECT * FROM users WHERE id = ?\", (user_id,))\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A05-NOINPUT-001-2",
+      "rule_id": "A05-NOINPUT-001",
+      "title": "Missing Input Validation on Request Fields",
+      "owasp": "A05",
+      "cwe": "CWE-20",
+      "severity": "medium",
+      "confidence": "possible",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:116",
+      "evidence": "Inputs used: ['expr'] — no validation found in handler",
+      "impact": "Request fields are used without type checking, length limits, or format validation, enabling injection or logic bypass.",
+      "remediation": "Validate and sanitise every input from request.args, request.form, and request.get_json()\nbefore using it in queries, file operations, or business logic.\n",
+      "fixed_code": "# Before (vulnerable):\nuser_id = request.args.get(\"id\")\ndb.query(f\"SELECT * FROM users WHERE id = {user_id}\")\n\n# After (fixed):\ntry:\n    user_id = int(request.args.get(\"id\", \"\"))\nexcept ValueError:\n    return jsonify({\"error\": \"id must be an integer\"}), 400\ndb.execute(\"SELECT * FROM users WHERE id = ?\", (user_id,))\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A05-SQL-001-1",
+      "rule_id": "A05-SQL-001",
+      "title": "SQL Injection via String Formatting",
+      "owasp": "A05",
+      "cwe": "CWE-89",
+      "severity": "critical",
+      "confidence": "likely",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:76",
+      "evidence": "query = f\"SELECT * FROM users WHERE name = '{name}'\"",
+      "impact": "Full database read, modification, and potential deletion via SQL injection.",
+      "remediation": "Use parameterised queries. Never interpolate user input directly into SQL strings.",
+      "fixed_code": "# Before (vulnerable):\nquery = f\"SELECT * FROM users WHERE name = '{name}'\"\ncursor.execute(query)\n\n# After (fixed):\ncursor.execute(\"SELECT * FROM users WHERE name = ?\", (name,))\n# or with SQLAlchemy:\ndb.execute(text(\"SELECT * FROM users WHERE name = :name\"), {\"name\": name})\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A09-NOLOG-001-1",
+      "rule_id": "A09-NOLOG-001",
+      "title": "No Logging on Failed Authentication",
+      "owasp": "A09",
+      "cwe": "CWE-778",
+      "severity": "medium",
+      "confidence": "possible",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:90",
+      "evidence": "POST /login — no logging call found in login handler",
+      "impact": "Failed login attempts are not recorded, making it impossible to detect\nbrute-force attacks, credential stuffing, or account enumeration.\n",
+      "remediation": "Log every failed authentication attempt with timestamp, username, and source IP.\nConsider rate limiting after N failures.\n",
+      "fixed_code": "import logging\nlogger = logging.getLogger(__name__)\n\n@app.route('/login', methods=['POST'])\ndef login():\n    ...\n    if not authenticated:\n        logger.warning(\n            \"Failed login for user=%s from ip=%s\",\n            username, request.remote_addr\n        )\n        return jsonify({\"error\": \"invalid credentials\"}), 401\n",
+      "ignored": false,
+      "ignore_reason": ""
+    },
+    {
+      "id": "A10-STACKTRACE-001-1",
+      "rule_id": "A10-STACKTRACE-001",
+      "title": "Stack Trace Returned to Client",
+      "owasp": "A10",
+      "cwe": "CWE-209",
+      "severity": "medium",
+      "confidence": "likely",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:111",
+      "evidence": "return jsonify({\"error\": str(e), \"traceback\": traceback.format_exc()}), 500",
+      "impact": "Full stack traces reveal internal file paths, library versions, function names,\nand variable values — a roadmap that makes other attacks much easier to develop.\n",
+      "remediation": "Catch exceptions at the top level, log the trace server-side, and return only a generic error message to the client.",
+      "fixed_code": "# Before (vulnerable):\nexcept Exception as e:\n    import traceback\n    return jsonify({\"error\": str(e), \"traceback\": traceback.format_exc()}), 500\n\n# After (fixed):\nexcept Exception:\n    logger.exception(\"Unhandled error in endpoint\")\n    return jsonify({\"error\": \"An internal error occurred\"}), 500\n",
+      "ignored": false,
+      "ignore_reason": ""
+    }
+  ],
+  "endpoints": [
+    {
+      "method": [
+        "GET"
+      ],
+      "path": "/admin",
+      "handler": "admin_panel",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:52",
+      "path_params": [],
+      "request_inputs": [],
+      "auth_decorators": [],
+      "is_protected": false
+    },
+    {
+      "method": [
+        "GET"
+      ],
+      "path": "/user/<int:user_id>",
+      "handler": "get_user",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:59",
+      "path_params": [
+        "user_id"
+      ],
+      "request_inputs": [],
+      "auth_decorators": [],
+      "is_protected": false
+    },
+    {
+      "method": [
+        "GET"
+      ],
+      "path": "/search",
+      "handler": "search",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:69",
+      "path_params": [],
+      "request_inputs": [
+        "name"
+      ],
+      "auth_decorators": [],
+      "is_protected": false
+    },
+    {
+      "method": [
+        "POST"
+      ],
+      "path": "/login",
+      "handler": "login",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:90",
+      "path_params": [],
+      "request_inputs": [],
+      "auth_decorators": [],
+      "is_protected": false
+    },
+    {
+      "method": [
+        "GET"
+      ],
+      "path": "/crash",
+      "handler": "crash",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:105",
+      "path_params": [],
+      "request_inputs": [],
+      "auth_decorators": [],
+      "is_protected": false
+    },
+    {
+      "method": [
+        "GET"
+      ],
+      "path": "/calculate",
+      "handler": "calculate",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:116",
+      "path_params": [],
+      "request_inputs": [
+        "expr"
+      ],
+      "auth_decorators": [],
+      "is_protected": false
+    },
+    {
+      "method": [
+        "GET"
+      ],
+      "path": "/token",
+      "handler": "make_token",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:128",
+      "path_params": [],
+      "request_inputs": [],
+      "auth_decorators": [],
+      "is_protected": false
+    },
+    {
+      "method": [
+        "GET"
+      ],
+      "path": "/protected",
+      "handler": "protected",
+      "location": "/Users/daksh/Downloads/new/demo_app/app.py:136",
+      "path_params": [],
+      "request_inputs": [],
+      "auth_decorators": [],
+      "is_protected": false
+    }
+  ],
+  "access_matrix": [],
+  "chains": [
+    {
+      "id": "CHAIN-001",
+      "name": "Full Database Takeover",
+      "description": "An unauthenticated sensitive route combined with SQL injection enables full database read, modification, and deletion without any credentials.",
+      "severity": "critical",
+      "finding_ids": [
+        "A01-NOAUTH-001-1",
+        "A05-SQL-001-1"
+      ],
+      "narrative": "Step 1: The /admin or other sensitive route is accessible without authentication (A01-NOAUTH-001). Step 2: A SQL injection vulnerability on a search or data endpoint (A05-SQL-001) allows arbitrary database queries. Together: an attacker accesses the admin endpoint to enumerate structure, then uses SQL injection to exfiltrate, modify, or delete all database records."
+    },
+    {
+      "id": "CHAIN-002",
+      "name": "Remote Code Execution via Open Admin",
+      "description": "An unauthenticated admin route plus an eval/exec call allows arbitrary OS command execution by any unauthenticated user.",
+      "severity": "critical",
+      "finding_ids": [
+        "A01-NOAUTH-001-1",
+        "A05-EXEC-001-1"
+      ],
+      "narrative": "Step 1: Admin or management endpoints are accessible without authentication (A01-NOAUTH-001). Step 2: eval() or exec() is called with user-controlled input (A05-EXEC-001). Together: an attacker sends crafted input to the open admin endpoint, achieving arbitrary code execution on the server with the app's OS privileges."
+    },
+    {
+      "id": "CHAIN-003",
+      "name": "Authentication Bypass via JWT Forgery",
+      "description": "A JWT with algorithm='none' combined with a protected route means any attacker can forge an admin token and access protected resources.",
+      "severity": "critical",
+      "finding_ids": [
+        "A04-JWT-001-1",
+        "A04-JWT-001-2",
+        "A01-NOAUTH-001-1"
+      ],
+      "narrative": "Step 1: The JWT implementation accepts algorithm='none', disabling signature verification (A04-JWT-001). Step 2: Admin routes lack authentication (A01-NOAUTH-001). Together: an attacker crafts a JWT claiming admin role without knowing any secret, then accesses all admin functionality."
+    },
+    {
+      "id": "CHAIN-004",
+      "name": "Credential Harvest via Debug Console",
+      "description": "Flask debug=True exposes an interactive Python console; combined with hardcoded secrets, all credentials are immediately available.",
+      "severity": "critical",
+      "finding_ids": [
+        "A02-DEBUG-001-1",
+        "A04-SECRET-001-1"
+      ],
+      "narrative": "Step 1: Flask is running with debug=True, exposing the Werkzeug interactive debugger on any exception page (A02-DEBUG-001). Step 2: Hardcoded secrets exist in the source (A04-SECRET-001). Together: an attacker triggers an exception to access the debugger console, reads the running source, and extracts all hardcoded credentials."
+    },
+    {
+      "id": "CHAIN-005",
+      "name": "IDOR + Weak Hash = Account Takeover",
+      "description": "Insecure Direct Object Reference combined with MD5/SHA1 password hashing enables account takeover: enumerate user IDs via IDOR, then crack the weak hashes.",
+      "severity": "critical",
+      "finding_ids": [
+        "A01-IDOR-001-1",
+        "A04-WEAKHASH-001-1"
+      ],
+      "narrative": "Step 1: User data endpoints return records for any ID without ownership checks (A01-IDOR-001), allowing enumeration of user records. Step 2: Passwords are hashed with MD5 (A04-WEAKHASH-001), which can be cracked in seconds with GPU rainbow tables. Together: an attacker enumerates user records, extracts password hashes, cracks them, and logs in as any user."
+    }
+  ],
+  "ignored": []
+}

@@ -1,0 +1,7 @@
+# demo_app_fixed/requirements.txt
+# All dependencies pinned to exact versions
+flask==3.0.3
+requests==2.32.3
+PyJWT==2.8.0
+flask-sqlalchemy==3.1.1
+pycryptodome==3.20.0

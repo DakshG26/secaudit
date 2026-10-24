@@ -1,0 +1,26 @@
+id: "A01-COMMENTED-AUTH-001"
+title: "Commented-Out Authentication Check"
+owasp: "A01"
+owasp_name: "Broken Access Control"
+cwe: "CWE-862"
+severity: "high"
+confidence: "likely"
+exploitability: "trivial"
+type: "regex"
+pattern: "#.*(?:login_required|jwt_required|auth_required|@login|authenticate|verify_token)"
+file_extensions: ["py", "js", "ts"]
+flags: "IGNORECASE"
+impact: "An authentication guard has been commented out, leaving the endpoint unprotected."
+fix: "Uncomment or re-implement the authentication decorator."
+fixed_code: |
+  # Before (vulnerable):
+  @app.route('/admin')
+  # @login_required   <-- commented out!
+  def admin():
+      pass
+
+  # After (fixed):
+  @app.route('/admin')
+  @login_required
+  def admin():
+      pass

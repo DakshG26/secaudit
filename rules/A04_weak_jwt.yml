@@ -1,0 +1,27 @@
+id: "A04-JWT-001"
+title: "JWT with 'none' Algorithm or Absent Verification"
+owasp: "A04"
+owasp_name: "Cryptographic Failures"
+cwe: "CWE-347"
+severity: "critical"
+confidence: "confirmed"
+exploitability: "trivial"
+type: "regex"
+pattern: "algorithm\\s*=\\s*['\"]none['\"]|verify_signature.*False|options\\s*=\\s*\\{[^}]*verify.*False"
+file_extensions: ["py", "js", "ts"]
+flags: "IGNORECASE"
+impact: |
+  The 'none' algorithm disables JWT signature verification entirely.
+  Any attacker can forge a token with arbitrary claims (e.g. admin role)
+  without knowing the secret key.
+fix: "Always specify a strong algorithm (HS256, RS256) and verify the signature."
+fixed_code: |
+  # Before (vulnerable):
+  token = jwt.encode(payload, "", algorithm="none")
+  data = jwt.decode(token, options={"verify_signature": False})
+
+  # After (fixed):
+  import os
+  SECRET = os.environ["JWT_SECRET"]
+  token = jwt.encode(payload, SECRET, algorithm="HS256")
+  data = jwt.decode(token, SECRET, algorithms=["HS256"])

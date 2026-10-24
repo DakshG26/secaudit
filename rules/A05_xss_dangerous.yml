@@ -1,0 +1,26 @@
+id: "A05-XSS-001"
+title: "Reflected XSS via innerHTML or dangerouslySetInnerHTML"
+owasp: "A05"
+owasp_name: "Injection"
+cwe: "CWE-79"
+severity: "high"
+confidence: "possible"
+exploitability: "easy"
+type: "regex"
+pattern: "(?:innerHTML|dangerouslySetInnerHTML)\\s*[=+]|document\\.write\\s*\\("
+file_extensions: ["js", "ts", "jsx", "tsx", "html"]
+flags: "IGNORECASE"
+impact: "Allows an attacker to inject malicious scripts into the page, stealing session tokens or redirecting users."
+fix: |
+  - Replace innerHTML with textContent for plain-text output.
+  - Use a sanitisation library (DOMPurify) if HTML must be rendered.
+  - In React, avoid dangerouslySetInnerHTML; use safe components instead.
+fixed_code: |
+  // Before (vulnerable):
+  element.innerHTML = userInput;
+  <div dangerouslySetInnerHTML={{ __html: userContent }} />
+
+  // After (fixed):
+  element.textContent = userInput;
+  import DOMPurify from 'dompurify';
+  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(userContent) }} />

@@ -1,0 +1,9 @@
+# demo_app/requirements.txt
+# Flaw 9a: Unpinned dependencies (no version pins)
+# Flaw 9b: Non-existent package (hallucinated by an AI)
+flask
+requests
+PyJWT
+flask-sqlalchemy
+pycryptodome
+ai-helper-utils-xyz   # hallucinated package — does not exist on PyPI

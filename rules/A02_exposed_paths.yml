@@ -1,0 +1,36 @@
+id: "A02-EXPOSEDPATHS-001"
+title: "Sensitive Path Exposed"
+owasp: "A02"
+owasp_name: "Security Misconfiguration"
+cwe: "CWE-538"
+severity: "high"
+confidence: "confirmed"
+exploitability: "trivial"
+type: "http"
+# Live check: probe each path; 200 with body = confirmed
+probe_paths:
+  - "/.env"
+  - "/.env.local"
+  - "/.env.production"
+  - "/admin"
+  - "/docs"
+  - "/api/docs"
+  - "/swagger"
+  - "/swagger-ui"
+  - "/openapi.json"
+  - "/__debug__"
+  - "/debug"
+  - "/metrics"
+  - "/actuator"
+  - "/health/details"
+impact: |
+  Exposed .env files leak secrets and credentials.
+  Exposed /docs or /swagger show full API surface to attackers.
+  Exposed /debug or /admin may allow unauthenticated management access.
+fix: |
+  - Add .env to .gitignore and serve it only via environment injection.
+  - Restrict /docs and /swagger behind authentication in production.
+  - Remove or password-protect debug endpoints.
+fixed_code: |
+  # Disable Swagger UI in production:
+  app = FastAPI(docs_url=None, redoc_url=None)  # in production config

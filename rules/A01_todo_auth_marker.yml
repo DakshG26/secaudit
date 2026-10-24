@@ -1,0 +1,20 @@
+id: "A01-TODO-001"
+title: "TODO/FIXME Auth Marker"
+owasp: "A01"
+owasp_name: "Broken Access Control"
+cwe: "CWE-862"
+severity: "medium"
+confidence: "possible"
+exploitability: "easy"
+type: "regex"
+pattern: "(?:TODO|FIXME|HACK|XXX).*(?:auth|login|permission|access|security|protect)"
+file_extensions: ["py", "js", "ts", "jsx", "tsx"]
+flags: "IGNORECASE"
+impact: "A developer noted that authentication is missing or incomplete but has not implemented it. The route may be unprotected."
+fix: "Implement the auth check noted in the comment before deploying."
+fixed_code: |
+  # Remove the TODO and add the decorator:
+  @app.route('/admin')
+  @login_required          # <-- implement this
+  def admin():
+      pass

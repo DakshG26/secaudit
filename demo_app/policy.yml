@@ -1,0 +1,23 @@
+# demo_app/policy.yml
+# Access control policy for the demo app.
+# SecAudit compares this to the endpoint inventory and reports violations.
+
+routes:
+  - path: "/admin"
+    requires: admin
+  - path: "/admin/*"
+    requires: admin
+  - path: "/user/<id>"
+    requires: owner
+  - path: "/login"
+    requires: public
+  - path: "/token"
+    requires: public
+  - path: "/protected"
+    requires: authenticated
+  - path: "/search"
+    requires: authenticated
+  - path: "/calculate"
+    requires: authenticated
+  - path: "/crash"
+    requires: authenticated

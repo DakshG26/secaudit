@@ -1,0 +1,29 @@
+id: "A02-SECHEADERS-001"
+title: "Missing Security Headers"
+owasp: "A02"
+owasp_name: "Security Misconfiguration"
+cwe: "CWE-693"
+severity: "medium"
+confidence: "confirmed"
+exploitability: "moderate"
+type: "http"
+# Live check: send HEAD to the base URL and inspect response headers
+required_headers:
+  - "X-Content-Type-Options"
+  - "X-Frame-Options"
+  - "Content-Security-Policy"
+  - "Strict-Transport-Security"
+  - "Referrer-Policy"
+impact: |
+  Missing security headers enable clickjacking, MIME-sniffing attacks,
+  cross-site scripting (via missing CSP), and information leakage.
+fix: |
+  Add security headers in a Flask after_request hook:
+fixed_code: |
+  @app.after_request
+  def add_security_headers(response):
+      response.headers['X-Content-Type-Options'] = 'nosniff'
+      response.headers['X-Frame-Options'] = 'DENY'
+      response.headers['Content-Security-Policy'] = "default-src 'self'"
+      response.headers['Referrer-Policy'] = 'no-referrer'
+      return response

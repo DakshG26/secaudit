@@ -1,0 +1,24 @@
+id: "A05-NOINPUT-001"
+title: "Missing Input Validation on Request Fields"
+owasp: "A05"
+owasp_name: "Injection"
+cwe: "CWE-20"
+severity: "medium"
+confidence: "possible"
+exploitability: "moderate"
+type: "route"
+impact: "Request fields are used without type checking, length limits, or format validation, enabling injection or logic bypass."
+fix: |
+  Validate and sanitise every input from request.args, request.form, and request.get_json()
+  before using it in queries, file operations, or business logic.
+fixed_code: |
+  # Before (vulnerable):
+  user_id = request.args.get("id")
+  db.query(f"SELECT * FROM users WHERE id = {user_id}")
+
+  # After (fixed):
+  try:
+      user_id = int(request.args.get("id", ""))
+  except ValueError:
+      return jsonify({"error": "id must be an integer"}), 400
+  db.execute("SELECT * FROM users WHERE id = ?", (user_id,))

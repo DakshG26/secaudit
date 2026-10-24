@@ -1,0 +1,134 @@
+{
+  "target_path": "/Users/daksh/Downloads/new/demo_app_fixed",
+  "scan_time": "2026-10-24T07:33:11.094819+00:00",
+  "stats": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "info": 0
+  },
+  "findings": [],
+  "endpoints": [
+    {
+      "method": [
+        "GET"
+      ],
+      "path": "/admin",
+      "handler": "admin_panel",
+      "location": "/Users/daksh/Downloads/new/demo_app_fixed/app.py:103",
+      "path_params": [],
+      "request_inputs": [],
+      "auth_decorators": [
+        "login_required",
+        "admin_required"
+      ],
+      "is_protected": true
+    },
+    {
+      "method": [
+        "GET"
+      ],
+      "path": "/user/<int:user_id>",
+      "handler": "get_user",
+      "location": "/Users/daksh/Downloads/new/demo_app_fixed/app.py:111",
+      "path_params": [
+        "user_id"
+      ],
+      "request_inputs": [],
+      "auth_decorators": [
+        "login_required"
+      ],
+      "is_protected": true
+    },
+    {
+      "method": [
+        "GET"
+      ],
+      "path": "/search",
+      "handler": "search",
+      "location": "/Users/daksh/Downloads/new/demo_app_fixed/app.py:126",
+      "path_params": [],
+      "request_inputs": [
+        "name"
+      ],
+      "auth_decorators": [
+        "login_required"
+      ],
+      "is_protected": true
+    },
+    {
+      "method": [
+        "POST"
+      ],
+      "path": "/login",
+      "handler": "login",
+      "location": "/Users/daksh/Downloads/new/demo_app_fixed/app.py:149",
+      "path_params": [],
+      "request_inputs": [],
+      "auth_decorators": [],
+      "is_protected": false
+    },
+    {
+      "method": [
+        "GET"
+      ],
+      "path": "/crash",
+      "handler": "crash",
+      "location": "/Users/daksh/Downloads/new/demo_app_fixed/app.py:170",
+      "path_params": [],
+      "request_inputs": [],
+      "auth_decorators": [
+        "login_required"
+      ],
+      "is_protected": true
+    },
+    {
+      "method": [
+        "GET"
+      ],
+      "path": "/calculate",
+      "handler": "calculate",
+      "location": "/Users/daksh/Downloads/new/demo_app_fixed/app.py:182",
+      "path_params": [],
+      "request_inputs": [
+        "expr"
+      ],
+      "auth_decorators": [
+        "login_required"
+      ],
+      "is_protected": true
+    },
+    {
+      "method": [
+        "GET"
+      ],
+      "path": "/token",
+      "handler": "make_token",
+      "location": "/Users/daksh/Downloads/new/demo_app_fixed/app.py:199",
+      "path_params": [],
+      "request_inputs": [],
+      "auth_decorators": [
+        "login_required"
+      ],
+      "is_protected": true
+    },
+    {
+      "method": [
+        "GET"
+      ],
+      "path": "/protected",
+      "handler": "protected",
+      "location": "/Users/daksh/Downloads/new/demo_app_fixed/app.py:208",
+      "path_params": [],
+      "request_inputs": [],
+      "auth_decorators": [
+        "token_required"
+      ],
+      "is_protected": true
+    }
+  ],
+  "access_matrix": [],
+  "chains": [],
+  "ignored": []
+}

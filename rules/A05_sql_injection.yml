@@ -1,0 +1,22 @@
+id: "A05-SQL-001"
+title: "SQL Injection via String Formatting"
+owasp: "A05"
+owasp_name: "Injection"
+cwe: "CWE-89"
+severity: "critical"
+confidence: "likely"
+exploitability: "easy"
+type: "regex"
+pattern: "(?:(?:execute|cursor\\.execute|db\\.execute|con\\.execute)\\s*\\([^)]*(?:f[\"']|%\\s*\\(|\\+\\s*[a-z_]|\\+\\s*request|\\+\\s*str))|(?:query\\s*=\\s*f[\"']SELECT|query\\s*=\\s*f[\"']INSERT|query\\s*=\\s*f[\"']UPDATE|query\\s*=\\s*f[\"']DELETE|sql\\s*=\\s*f[\"'])"
+file_extensions: ["py"]
+impact: "Full database read, modification, and potential deletion via SQL injection."
+fix: "Use parameterised queries. Never interpolate user input directly into SQL strings."
+fixed_code: |
+  # Before (vulnerable):
+  query = f"SELECT * FROM users WHERE name = '{name}'"
+  cursor.execute(query)
+
+  # After (fixed):
+  cursor.execute("SELECT * FROM users WHERE name = ?", (name,))
+  # or with SQLAlchemy:
+  db.execute(text("SELECT * FROM users WHERE name = :name"), {"name": name})

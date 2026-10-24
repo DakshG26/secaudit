@@ -1,0 +1,22 @@
+# demo_app_fixed/policy.yml
+# Access control policy — same as demo_app, used for comparison.
+
+routes:
+  - path: "/admin"
+    requires: admin
+  - path: "/admin/*"
+    requires: admin
+  - path: "/user/<id>"
+    requires: owner
+  - path: "/login"
+    requires: public
+  - path: "/token"
+    requires: authenticated
+  - path: "/protected"
+    requires: authenticated
+  - path: "/search"
+    requires: authenticated
+  - path: "/calculate"
+    requires: authenticated
+  - path: "/crash"
+    requires: authenticated

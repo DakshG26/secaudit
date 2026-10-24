@@ -1,0 +1,26 @@
+# SecAudit .gitignore
+
+# Reference repos — study only, never submitted
+reference/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Reports (generated output)
+*.html
+*.sarif
+audit_log.jsonl
+
+# IDE
+.vscode/
+.idea/
+
+# macOS
+.DS_Store

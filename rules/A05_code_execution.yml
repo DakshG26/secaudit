@@ -1,0 +1,29 @@
+id: "A05-EXEC-001"
+title: "Dangerous Code Execution (eval/exec/os.system)"
+owasp: "A05"
+owasp_name: "Injection"
+cwe: "CWE-78"
+severity: "critical"
+confidence: "likely"
+exploitability: "trivial"
+type: "regex"
+pattern: "(?<![a-zA-Z0-9_])(?:eval|exec)\\s*\\(|os\\.system\\s*\\(|subprocess\\.(?:call|run|Popen)\\s*\\([^)]*shell\\s*=\\s*True"
+file_extensions: ["py", "js", "ts"]
+impact: |
+  Allows arbitrary code or OS command execution if user-controlled data reaches this call.
+  An attacker can read files, exfiltrate data, install malware, or take over the server.
+fix: |
+  - Replace eval() with ast.literal_eval() for safe literal parsing.
+  - Replace os.system() with subprocess.run(shell=False, args=[...]).
+  - Never pass user input to exec() or shell=True.
+fixed_code: |
+  # Before (vulnerable):
+  result = eval(request.args.get('expr'))
+  os.system(f"convert {user_input}.jpg output.png")
+
+  # After (fixed):
+  import ast
+  result = ast.literal_eval(request.args.get('expr'))  # literals only
+
+  import subprocess
+  subprocess.run(["convert", safe_filename, "output.png"], shell=False)

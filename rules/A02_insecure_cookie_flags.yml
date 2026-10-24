@@ -1,0 +1,30 @@
+id: "A02-COOKIEFLAGS-001"
+title: "Insecure Cookie Flags"
+owasp: "A02"
+owasp_name: "Security Misconfiguration"
+cwe: "CWE-614"
+severity: "medium"
+confidence: "confirmed"
+exploitability: "moderate"
+type: "http"
+# Live check: look at Set-Cookie headers in responses
+check_flags_missing:
+  - "HttpOnly"
+  - "Secure"
+  - "SameSite"
+impact: |
+  Cookies without HttpOnly can be stolen via XSS.
+  Cookies without Secure are transmitted over plain HTTP.
+  Cookies without SameSite are vulnerable to CSRF.
+fix: |
+  Set all three flags on session cookies.
+fixed_code: |
+  # Flask config:
+  app.config.update(
+      SESSION_COOKIE_HTTPONLY=True,
+      SESSION_COOKIE_SECURE=True,
+      SESSION_COOKIE_SAMESITE='Lax',
+  )
+
+  # Or per response:
+  response.set_cookie('session', value, httponly=True, secure=True, samesite='Lax')

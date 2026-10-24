@@ -1,0 +1,38 @@
+id: "A01-IDOR-001"
+title: "Insecure Direct Object Reference (IDOR)"
+owasp: "A01"
+owasp_name: "Broken Access Control"
+cwe: "CWE-639"
+severity: "high"
+confidence: "possible"
+exploitability: "easy"
+type: "route"
+pattern: "(<int:\\w+>|<\\w+_id>|\\{\\w+_id\\}|\\{id\\}|<id>)"
+impact: "An attacker can access or modify records belonging to any other user by changing the ID in the URL."
+fix: |
+  Verify that the authenticated user owns the requested resource before returning it.
+  Compare session user ID to the requested resource's owner ID.
+fixed_code: |
+  # Before (vulnerable):
+  @app.route('/user/<int:user_id>')
+  def get_user(user_id):
+      return jsonify(db.get_user(user_id))  # No ownership check
+
+  # After (fixed):
+  @app.route('/user/<int:user_id>')
+  @login_required
+  def get_user(user_id):
+      if current_user.id != user_id and not current_user.is_admin:
+          abort(403)
+      return jsonify(db.get_user(user_id))
+
+ownership_check_patterns:
+  - "session.get"
+  - "current_user"
+  - "g.user"
+  - "request.user"
+  - "is_admin"
+  - "owner_id"
+  - "user_id =="
+  - "abort(403)"
+  - "abort(401)"

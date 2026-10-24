@@ -1,0 +1,22 @@
+id: "A02-DEBUG-001"
+title: "Flask/FastAPI Debug Mode Enabled"
+owasp: "A02"
+owasp_name: "Security Misconfiguration"
+cwe: "CWE-94"
+severity: "high"
+confidence: "confirmed"
+exploitability: "trivial"
+type: "regex"
+pattern: "(?:app\\.run|uvicorn\\.run)\\s*\\([^)]*debug\\s*=\\s*True"
+file_extensions: ["py"]
+impact: |
+  Flask debug mode exposes an interactive Werkzeug debugger console in the browser.
+  An attacker who triggers any exception gets a Python REPL with full server access.
+fix: "Set debug=False in production, or read from an environment variable."
+fixed_code: |
+  # Before (vulnerable):
+  app.run(debug=True)
+
+  # After (fixed):
+  import os
+  app.run(debug=os.getenv('FLASK_DEBUG', 'false').lower() == 'true')

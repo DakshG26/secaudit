@@ -1,0 +1,25 @@
+id: "A10-STACKTRACE-001"
+title: "Stack Trace Returned to Client"
+owasp: "A10"
+owasp_name: "Server-Side Request Forgery"
+cwe: "CWE-209"
+severity: "medium"
+confidence: "likely"
+exploitability: "easy"
+type: "regex"
+pattern: "(?:traceback\\.format_exc|traceback\\.print_exc|sys\\.exc_info|str\\(e\\).*return|jsonify.*traceback)"
+file_extensions: ["py"]
+impact: |
+  Full stack traces reveal internal file paths, library versions, function names,
+  and variable values — a roadmap that makes other attacks much easier to develop.
+fix: "Catch exceptions at the top level, log the trace server-side, and return only a generic error message to the client."
+fixed_code: |
+  # Before (vulnerable):
+  except Exception as e:
+      import traceback
+      return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+  # After (fixed):
+  except Exception:
+      logger.exception("Unhandled error in endpoint")
+      return jsonify({"error": "An internal error occurred"}), 500

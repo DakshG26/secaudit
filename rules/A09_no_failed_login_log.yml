@@ -1,0 +1,29 @@
+id: "A09-NOLOG-001"
+title: "No Logging on Failed Authentication"
+owasp: "A09"
+owasp_name: "Security Logging and Monitoring Failures"
+cwe: "CWE-778"
+severity: "medium"
+confidence: "possible"
+exploitability: "moderate"
+type: "route"
+# Triggered when a login/auth route lacks a logging call near the failure path
+impact: |
+  Failed login attempts are not recorded, making it impossible to detect
+  brute-force attacks, credential stuffing, or account enumeration.
+fix: |
+  Log every failed authentication attempt with timestamp, username, and source IP.
+  Consider rate limiting after N failures.
+fixed_code: |
+  import logging
+  logger = logging.getLogger(__name__)
+
+  @app.route('/login', methods=['POST'])
+  def login():
+      ...
+      if not authenticated:
+          logger.warning(
+              "Failed login for user=%s from ip=%s",
+              username, request.remote_addr
+          )
+          return jsonify({"error": "invalid credentials"}), 401

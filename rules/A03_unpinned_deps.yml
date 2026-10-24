@@ -1,0 +1,23 @@
+id: "A03-UNPINNED-001"
+title: "Unpinned Dependencies"
+owasp: "A03"
+owasp_name: "Software and Data Integrity Failures"
+cwe: "CWE-1104"
+severity: "low"
+confidence: "confirmed"
+exploitability: "hard"
+type: "deps"
+# Targets: requirements.txt, setup.cfg, pyproject.toml, package.json
+impact: |
+  Unpinned dependencies are resolved at install time to whatever the latest version is.
+  A supply-chain attack or accidentally breaking change in a dependency can be silently
+  introduced into the production build.
+fix: "Pin every dependency to an exact version (==) or a narrow range (>=x,<x+1)."
+fixed_code: |
+  # Before (vulnerable):
+  flask
+  requests
+
+  # After (fixed):
+  flask==3.0.3
+  requests==2.32.3
