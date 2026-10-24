@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
-import { ScanInput } from './components/ScanInput';
-import { ScoreCard } from './components/ScoreCard';
-import { AttackFlows } from './components/AttackFlows';
-import { FindingsList } from './components/FindingsList';
-import { AccessMatrix } from './components/AccessMatrix';
-import { EndpointTable } from './components/EndpointTable';
+import { Pillars } from './components/Pillars';
+import { InteractiveFeatures } from './components/InteractiveFeatures';
+import { Protocol } from './components/Protocol';
+import { AuditWorkspace } from './components/AuditWorkspace';
+import { ServicesGrid } from './components/ServicesGrid';
 import { Footer } from './components/Footer';
 import { ScanResult } from './types/security';
 import { MOCK_VULNERABLE_SCAN, MOCK_CLEAN_SCAN } from './data/mockData';
-import { Network, ShieldAlert, Lock, FileCode, AlertTriangle } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [scanResult, setScanResult] = useState<ScanResult>(MOCK_VULNERABLE_SCAN);
@@ -33,15 +31,11 @@ export const App: React.FC = () => {
     setIsLoading(true);
     setErrorMsg(null);
 
-    if (url === 'sample:clean' || url === 'clean' || url === 'demo_app_fixed') {
-      setTimeout(() => { setScanResult(MOCK_CLEAN_SCAN); setIsLoading(false); }, 600);
-      return;
-    }
-    if (url === 'sample:vulnerable' || url === 'vulnerable' || url === 'demo_app') {
-      setTimeout(() => { setScanResult(MOCK_VULNERABLE_SCAN); setIsLoading(false); }, 600);
-      return;
-    }
+    // Scroll smoothly to the workspace
+    const el = document.getElementById('audit');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
 
+    // If backend is live, execute real AST & rule scan
     if (isBackendLive) {
       try {
         const response = await fetch('http://localhost:8000/api/scan', {
@@ -50,8 +44,11 @@ export const App: React.FC = () => {
           body: JSON.stringify({ url }),
         });
         const data = await response.json();
-        if (response.ok) setScanResult(data);
-        else setErrorMsg(data.error || 'Scan failed on remote target');
+        if (response.ok) {
+          setScanResult(data);
+        } else {
+          setErrorMsg(data.error || 'Scan failed on target repository');
+        }
       } catch (err: any) {
         setErrorMsg('Failed to connect to SecAudit API engine: ' + err.message);
       } finally {
@@ -60,121 +57,57 @@ export const App: React.FC = () => {
       return;
     }
 
+    // Offline UI Fallback simulation
+    if (url === 'sample:clean' || url === 'clean' || url === 'demo_app_fixed') {
+      setTimeout(() => { setScanResult(MOCK_CLEAN_SCAN); setIsLoading(false); }, 400);
+      return;
+    }
     setTimeout(() => {
       setScanResult({ ...MOCK_VULNERABLE_SCAN, target: url, scan_time: new Date().toISOString() });
       setIsLoading(false);
-    }, 1000);
+    }, 600);
   };
 
   const handleSelectPreset = (p: 'vulnerable' | 'clean') => {
     setScanResult(p === 'clean' ? MOCK_CLEAN_SCAN : MOCK_VULNERABLE_SCAN);
+    const el = document.getElementById('audit');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-black">
+    <div className="relative min-h-screen bg-[#070b14] text-slate-100 selection:bg-cyan-500 selection:text-black">
+      {/* 5% Noise overlay from build-premium-website design system */}
+      <div className="noise-overlay" />
+
       <Navbar onSelectPreset={handleSelectPreset} isBackendLive={isBackendLive} />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <Hero />
+      <main className="relative z-10">
+        <Hero onScan={handleScan} isLoading={isLoading} />
 
-        <ScanInput
-          onScan={handleScan}
-          isLoading={isLoading}
-          activeTarget={scanResult.target}
+        <Pillars />
+
+        <InteractiveFeatures
+          chains={scanResult.chains}
+          matrix={scanResult.access_matrix}
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
+            const el = document.getElementById('flows');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }}
         />
 
-        {errorMsg && (
-          <div className="max-w-3xl mx-auto mb-6 p-4 rounded-xl bg-red-950/40 border border-red-500/40 text-red-300 text-xs font-mono flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
-            <div>
-              <p className="font-bold">Scan Error</p>
-              <p>{errorMsg}</p>
-            </div>
-          </div>
-        )}
+        <Protocol />
 
-        <ScoreCard scan={scanResult} />
+        <AuditWorkspace
+          scanResult={scanResult}
+          isLoading={isLoading}
+          errorMsg={errorMsg}
+          onScan={handleScan}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+        />
 
-        {/* Tab Navigation */}
-        <div className="border-b border-slate-800 mb-6">
-          <nav className="flex space-x-2 sm:space-x-8 overflow-x-auto pb-1 text-xs font-mono">
-            <button
-              onClick={() => setActiveTab('flows')}
-              className={`flex items-center gap-2 py-3 px-2 border-b-2 font-semibold transition cursor-pointer whitespace-nowrap ${
-                activeTab === 'flows'
-                  ? 'border-cyan-400 text-cyan-300'
-                  : 'border-transparent text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Network className="w-4 h-4" />
-              <span>Attack Flows</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-red-950 text-red-300 border border-red-800">
-                {scanResult.chains.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('findings')}
-              className={`flex items-center gap-2 py-3 px-2 border-b-2 font-semibold transition cursor-pointer whitespace-nowrap ${
-                activeTab === 'findings'
-                  ? 'border-cyan-400 text-cyan-300'
-                  : 'border-transparent text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <ShieldAlert className="w-4 h-4" />
-              <span>Findings</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-800 text-slate-300">
-                {scanResult.findings.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('matrix')}
-              className={`flex items-center gap-2 py-3 px-2 border-b-2 font-semibold transition cursor-pointer whitespace-nowrap ${
-                activeTab === 'matrix'
-                  ? 'border-cyan-400 text-cyan-300'
-                  : 'border-transparent text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Lock className="w-4 h-4" />
-              <span>Zero-Trust Matrix</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-800 text-slate-300">
-                {scanResult.access_matrix.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('endpoints')}
-              className={`flex items-center gap-2 py-3 px-2 border-b-2 font-semibold transition cursor-pointer whitespace-nowrap ${
-                activeTab === 'endpoints'
-                  ? 'border-cyan-400 text-cyan-300'
-                  : 'border-transparent text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <FileCode className="w-4 h-4" />
-              <span>Route Inventory</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-800 text-slate-300">
-                {scanResult.endpoints.length}
-              </span>
-            </button>
-          </nav>
-        </div>
-
-        {/* Tab Views */}
-        <div>
-          {activeTab === 'flows' && (
-            <AttackFlows chains={scanResult.chains} findings={scanResult.findings} />
-          )}
-          {activeTab === 'findings' && (
-            <FindingsList findings={scanResult.findings} />
-          )}
-          {activeTab === 'matrix' && (
-            <AccessMatrix matrix={scanResult.access_matrix} />
-          )}
-          {activeTab === 'endpoints' && (
-            <EndpointTable endpoints={scanResult.endpoints} />
-          )}
-        </div>
+        <ServicesGrid />
       </main>
 
       <Footer />

@@ -83,12 +83,12 @@ export const ScanInput: React.FC<ScanInputProps> = ({ onScan, isLoading, activeT
         </button>
         <button
           type="button"
-          onClick={() => handlePreset('https://github.com/tiangolo/fastapi')}
+          onClick={() => handlePreset('https://github.com/bottlepy/bottle')}
           disabled={isLoading}
           className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900/60 border border-slate-700 text-slate-300 hover:border-cyan-500/50 transition cursor-pointer"
         >
           <Globe className="w-3 h-3 text-cyan-400" />
-          <span>FastAPI Sample Repo</span>
+          <span>Real GitHub Repo (bottle)</span>
         </button>
       </div>
 
