@@ -18,6 +18,11 @@ env/
 *.sarif
 audit_log.jsonl
 
+# Web Frontend
+web/node_modules/
+web/dist/
+.vite/
+
 # IDE
 .vscode/
 .idea/

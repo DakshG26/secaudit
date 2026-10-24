@@ -1,6 +1,6 @@
 {
   "target_path": "/Users/daksh/Downloads/new/demo_app",
-  "scan_time": "2026-10-24T07:33:10.989426+00:00",
+  "scan_time": "2026-10-24T07:37:27.257193+00:00",
   "stats": {
     "critical": 5,
     "high": 5,
@@ -434,7 +434,72 @@
       "is_protected": false
     }
   ],
-  "access_matrix": [],
+  "access_matrix": [
+    {
+      "method": "GET",
+      "path": "/admin",
+      "expected": "admin",
+      "actual": "none",
+      "auth_decorators": [],
+      "status": "VIOLATION"
+    },
+    {
+      "method": "GET",
+      "path": "/calculate",
+      "expected": "authenticated",
+      "actual": "none",
+      "auth_decorators": [],
+      "status": "VIOLATION"
+    },
+    {
+      "method": "GET",
+      "path": "/crash",
+      "expected": "authenticated",
+      "actual": "none",
+      "auth_decorators": [],
+      "status": "VIOLATION"
+    },
+    {
+      "method": "POST",
+      "path": "/login",
+      "expected": "public",
+      "actual": "none",
+      "auth_decorators": [],
+      "status": "OK"
+    },
+    {
+      "method": "GET",
+      "path": "/protected",
+      "expected": "authenticated",
+      "actual": "none",
+      "auth_decorators": [],
+      "status": "VIOLATION"
+    },
+    {
+      "method": "GET",
+      "path": "/search",
+      "expected": "authenticated",
+      "actual": "none",
+      "auth_decorators": [],
+      "status": "VIOLATION"
+    },
+    {
+      "method": "GET",
+      "path": "/token",
+      "expected": "public",
+      "actual": "none",
+      "auth_decorators": [],
+      "status": "OK"
+    },
+    {
+      "method": "GET",
+      "path": "/user/<int:user_id>",
+      "expected": "owner",
+      "actual": "none",
+      "auth_decorators": [],
+      "status": "VIOLATION"
+    }
+  ],
   "chains": [
     {
       "id": "CHAIN-001",
