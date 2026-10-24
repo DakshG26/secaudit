@@ -29,6 +29,22 @@ secaudit compare before.json after.json
 secaudit rules
 ```
 
+### Web dashboard
+
+The Vite/React dashboard is in `web/`. Install its locked dependencies and
+start the development server with:
+
+```bash
+cd web
+npm ci
+npm run dev
+```
+
+Open `http://localhost:5173`. The dashboard starts in Demo Mode when the
+optional local API gateway is not running, so the UI can be reviewed without
+starting a target application. To verify a production bundle instead, run
+`npm run build` (or preview the generated bundle with `npm run preview`).
+
 ---
 
 ## Features

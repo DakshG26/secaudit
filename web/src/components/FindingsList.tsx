@@ -4,12 +4,12 @@ import { ChevronDown, ChevronUp, Code2, ShieldAlert } from 'lucide-react';
 
 interface FindingsListProps { findings: Finding[]; }
 
-const SEVERITY_CONFIG: Record<Severity | 'info', { label: string; bg: string; text: string; border: string; dot: string }> = {
-  critical: { label: 'Critical',  bg: 'bg-red-50',    text: 'text-red-700',    border: 'border-red-200',    dot: 'bg-red-500' },
-  high:     { label: 'High',      bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', dot: 'bg-orange-500' },
-  medium:   { label: 'Medium',    bg: 'bg-amber-50',  text: 'text-amber-700',  border: 'border-amber-200',  dot: 'bg-amber-400' },
-  low:      { label: 'Low',       bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200',   dot: 'bg-blue-400' },
-  info:     { label: 'Info',      bg: 'bg-gray-50',   text: 'text-gray-600',   border: 'border-gray-200',   dot: 'bg-gray-400' },
+const SEVERITY_CONFIG: Record<Severity | 'info', { label: string; bg: string; text: string; border: string; dot: string; ring: string }> = {
+  critical: { label: 'Critical',  bg: 'bg-red-50',    text: 'text-red-700',    border: 'border-red-200',    dot: 'bg-red-500',    ring: 'ring-red-500/30' },
+  high:     { label: 'High',      bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', dot: 'bg-orange-500', ring: 'ring-orange-500/30' },
+  medium:   { label: 'Medium',    bg: 'bg-amber-50',  text: 'text-amber-700',  border: 'border-amber-200',  dot: 'bg-amber-400',  ring: 'ring-amber-400/30' },
+  low:      { label: 'Low',       bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200',   dot: 'bg-blue-400',   ring: 'ring-blue-400/30' },
+  info:     { label: 'Info',      bg: 'bg-gray-50',   text: 'text-gray-600',   border: 'border-gray-200',   dot: 'bg-gray-400',   ring: 'ring-gray-400/30' },
 };
 
 const CONFIDENCE_LABEL: Record<string, { label: string; color: string }> = {
@@ -49,14 +49,16 @@ export const FindingsList: React.FC<FindingsListProps> = ({ findings }) => {
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
+            type="button"
             onClick={() => setAllExpanded(!allExpanded)}
+            aria-pressed={allExpanded}
             className="px-2.5 py-1 text-xs font-mono text-primary bg-primary/10 hover:bg-primary/20 border border-primary/25 rounded-lg transition cursor-pointer"
           >
             {allExpanded ? 'Collapse All' : 'Expand All'}
           </button>
           <div className="flex items-center gap-1 p-1 bg-surface border border-divider rounded-xl text-xs font-mono">
             {(['all','critical','high','medium','low'] as const).map(s => (
-              <button key={s} onClick={() => setSel(s)}
+              <button key={s} type="button" onClick={() => setSel(s)} aria-pressed={sel === s}
                 className={`px-2.5 py-1 rounded-lg capitalize transition cursor-pointer ${
                   sel === s ? 'bg-primary text-white font-semibold' : 'text-muted hover:text-ink'
                 }`}>
@@ -69,18 +71,25 @@ export const FindingsList: React.FC<FindingsListProps> = ({ findings }) => {
 
       {/* Finding cards */}
       <div className="space-y-3">
-        {filtered.map(f => {
+        {filtered.length === 0 ? (
+          <div className="rounded-2xl border border-divider bg-surface px-4 py-10 text-center text-sm text-muted">
+            No {sel === 'all' ? '' : `${sel} `}findings match this filter.
+          </div>
+        ) : filtered.map(f => {
           const cfg = SEVERITY_CONFIG[f.severity] ?? SEVERITY_CONFIG.info;
           const conf = CONFIDENCE_LABEL[f.confidence] ?? { label: f.confidence, color: 'text-muted' };
           const open = allExpanded || expanded === f.id;
           return (
             <div key={f.id} className={`rounded-2xl border-2 ${cfg.border} overflow-hidden bg-surface shadow-sm hover:shadow-md transition-shadow`}>
               {/* Header row */}
-              <button
+                <button
+                type="button"
                 onClick={() => setExpanded(open ? (allExpanded ? f.id : null) : f.id)}
+                aria-expanded={open}
+                aria-controls={`finding-details-${f.id}`}
                 className="w-full text-left p-4 flex items-start gap-3 cursor-pointer hover:bg-divider/20 transition-colors"
               >
-                <span className={`mt-1 w-2.5 h-2.5 rounded-full ${cfg.dot} shrink-0 ring-2 ring-offset-2 ring-offset-surface ${cfg.dot.replace('bg-','ring-')}/30`} />
+                <span className={`mt-1 w-2.5 h-2.5 rounded-full ${cfg.dot} shrink-0 ring-2 ring-offset-2 ring-offset-surface ${cfg.ring}`} aria-hidden="true" />
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-1">
                     <span className={`px-2 py-0.5 rounded-md text-xs font-mono font-bold uppercase ${cfg.bg} ${cfg.text} border ${cfg.border}`}>
@@ -92,7 +101,7 @@ export const FindingsList: React.FC<FindingsListProps> = ({ findings }) => {
                     <span className="text-xs font-mono text-muted">{f.cwe}</span>
                     <span className={`text-xs font-mono ${conf.color}`}>{conf.label}</span>
                   </div>
-                  <p className="font-display font-semibold text-base text-ink">{f.title}</p>
+                   <p className="font-display font-semibold text-base text-ink break-words">{f.title}</p>
                   <p className="text-xs text-muted mt-0.5 line-clamp-1">{f.impact}</p>
                   <p className="text-[11px] font-mono text-primary/80 mt-1 truncate">📍 {f.location}</p>
                 </div>
@@ -103,7 +112,7 @@ export const FindingsList: React.FC<FindingsListProps> = ({ findings }) => {
 
               {/* Expanded detail */}
               {open && (
-                <div className="px-4 pb-4 pt-0 space-y-3 animate-fade-in border-t border-divider bg-background">
+                <div id={`finding-details-${f.id}`} className="px-4 pb-4 pt-0 space-y-3 animate-fade-in border-t border-divider bg-background">
                   <div className="pt-3">
                     <p className="text-xs font-mono uppercase tracking-wider text-muted mb-1.5">Exact Code Line Found</p>
                     <pre className={`p-3 rounded-xl ${cfg.bg} border ${cfg.border} text-xs font-mono text-ink overflow-x-auto whitespace-pre-wrap`}>{f.evidence}</pre>
@@ -125,7 +134,7 @@ export const FindingsList: React.FC<FindingsListProps> = ({ findings }) => {
                       <p className="text-xs font-mono uppercase tracking-wider text-emerald-700 mb-1.5 flex items-center gap-1 font-bold">
                         <Code2 className="w-3.5 h-3.5" /> Recommended Fix
                       </p>
-                      <pre className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-mono text-emerald-900 overflow-x-auto whitespace-pre">{f.fixed_code}</pre>
+                       <pre className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-mono text-emerald-900 overflow-x-auto whitespace-pre-wrap break-words">{f.fixed_code}</pre>
                     </div>
                   )}
                 </div>

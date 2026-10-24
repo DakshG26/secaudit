@@ -5,6 +5,26 @@ each part to judges without reading the source code first.
 
 ---
 
+## web/ (frontend dashboard)
+
+**What it is**: The browser dashboard for reviewing scans, findings, endpoint
+inventory, reports, and remediation guidance.
+
+- `index.html` provides the browser document and loads the Vite entry point.
+- `src/main.tsx` mounts the React application into the `root` element and
+  enables `StrictMode` during development.
+- `src/App.tsx` owns the selected screen, current scan, demo presets, and the
+  optional API calls to the local gateway.
+- `src/components/` contains the dashboard screens and reusable UI pieces.
+- `src/index.css` contains the Tailwind directives and shared visual styles.
+- `package.json` and `vite.config.ts` define the reproducible npm scripts,
+  strict TypeScript build, and local development server settings.
+
+Run `npm ci` followed by `npm run build` from `web/` to type-check the source
+and produce the deployable Vite bundle in `web/dist/`.
+
+---
+
 ## models.py
 
 **What it is**: The shared data language of the whole tool.

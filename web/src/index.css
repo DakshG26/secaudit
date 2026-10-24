@@ -3,15 +3,38 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-background: #F7F8FC;
+    --color-surface: #FFFFFF;
+    --color-ink: #18213D;
+    --color-muted: #77819D;
+    --color-divider: #E7E9F3;
+    --color-primary: #6554F0;
+    --color-primary-dark: #4E3ED9;
+    --color-primary-light: #8273F5;
+    --color-deep: #0E1326;
+  }
+
   html {
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
   }
   body {
-    background-color: #F7F8FC;
-    color: #18213D;
+    background-color: var(--color-background);
+    color: var(--color-ink);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     overflow-x: hidden;
+  }
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    outline: 3px solid rgba(101, 84, 240, 0.45);
+    outline-offset: 2px;
   }
   ::selection {
     background-color: #6554F0;
@@ -35,6 +58,13 @@
 }
 
 @layer components {
+  .glass {
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(231, 233, 243, 0.9);
+  }
+
   .glass-card {
     background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(16px);
@@ -62,6 +92,47 @@
     transform: translateY(0);
   }
 
+  .magnetic-btn {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  }
+  .magnetic-btn:hover {
+    transform: translateY(-1px);
+  }
+  .magnetic-btn:active {
+    transform: translateY(0);
+  }
+
+  .lift-on-hover {
+    transition: transform 0.2s ease, color 0.2s ease;
+  }
+  .lift-on-hover:hover {
+    transform: translateY(-1px);
+  }
+
+  .grid-bg {
+    background-image: linear-gradient(rgba(101, 84, 240, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(101, 84, 240, 0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: linear-gradient(to bottom, black 0%, transparent 82%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 82%);
+  }
+
+  .ring-pulse {
+    animation: ring-pulse 2.4s ease-out infinite;
+  }
+  @keyframes ring-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(22, 184, 135, 0.24); }
+    50% { box-shadow: 0 0 0 4px rgba(22, 184, 135, 0); }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.24s ease-out both;
+  }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   .subtle-pulse {
     animation: subtle-pulse 2.5s infinite;
   }
@@ -69,5 +140,71 @@
     0% { box-shadow: 0 0 0 0 rgba(101, 84, 240, 0.4); }
     70% { box-shadow: 0 0 0 10px rgba(101, 84, 240, 0); }
     100% { box-shadow: 0 0 0 0 rgba(101, 84, 240, 0); }
+  }
+}
+
+/*
+ * Shared presentation components use semantic color names so the same UI can
+ * be embedded outside the dashboard. Keep these aliases local to the entry
+ * stylesheet instead of requiring every consumer to duplicate theme config.
+ */
+@layer utilities {
+  .bg-background { background-color: var(--color-background); }
+  .bg-surface { background-color: var(--color-surface); }
+  .bg-deep { background-color: var(--color-deep); }
+  .bg-primary { background-color: var(--color-primary); }
+  .bg-primary\/5 { background-color: rgba(101, 84, 240, 0.05); }
+  .bg-primary\/8 { background-color: rgba(101, 84, 240, 0.08); }
+  .bg-primary\/10 { background-color: rgba(101, 84, 240, 0.10); }
+  .bg-primary\/15 { background-color: rgba(101, 84, 240, 0.15); }
+  .bg-primary\/20 { background-color: rgba(101, 84, 240, 0.20); }
+  .bg-primary\/60 { background-color: rgba(101, 84, 240, 0.60); }
+  .bg-divider\/20 { background-color: rgba(231, 233, 243, 0.20); }
+  .bg-divider\/60 { background-color: rgba(231, 233, 243, 0.60); }
+
+  .text-ink { color: var(--color-ink); }
+  .text-ink\/60 { color: rgba(24, 33, 61, 0.60); }
+  .text-ink\/70 { color: rgba(24, 33, 61, 0.70); }
+  .text-ink\/80 { color: rgba(24, 33, 61, 0.80); }
+  .text-muted { color: var(--color-muted); }
+  .text-divider { color: var(--color-divider); }
+  .text-primary { color: var(--color-primary); }
+  .text-primary\/80 { color: rgba(101, 84, 240, 0.80); }
+  .text-primary-light { color: var(--color-primary-light); }
+  .text-primary-dark { color: var(--color-primary-dark); }
+
+  .border-divider { border-color: var(--color-divider); }
+  .border-primary { border-color: var(--color-primary); }
+  .border-primary\/20 { border-color: rgba(101, 84, 240, 0.20); }
+  .border-primary\/25 { border-color: rgba(101, 84, 240, 0.25); }
+  .border-primary\/30 { border-color: rgba(101, 84, 240, 0.30); }
+  .border-primary\/40 { border-color: rgba(101, 84, 240, 0.40); }
+  .ring-offset-surface { --tw-ring-offset-color: var(--color-surface); }
+
+  .shadow-primary\/10 { --tw-shadow-color: rgba(101, 84, 240, 0.10); }
+  .shadow-primary\/25 { --tw-shadow-color: rgba(101, 84, 240, 0.25); }
+  .shadow-primary\/30 { --tw-shadow-color: rgba(101, 84, 240, 0.30); }
+
+  .font-display { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  .font-body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  .placeholder-muted\/70::placeholder { color: rgba(119, 129, 157, 0.70); }
+
+  .hover\:bg-primary\/20:hover { background-color: rgba(101, 84, 240, 0.20); }
+  .hover\:bg-primary\/40:hover { background-color: rgba(101, 84, 240, 0.40); }
+  .hover\:text-primary:hover { color: var(--color-primary); }
+  .hover\:text-primary-dark:hover { color: var(--color-primary-dark); }
+  .hover\:border-primary\/30:hover { border-color: rgba(101, 84, 240, 0.30); }
+  .hover\:border-primary\/40:hover { border-color: rgba(101, 84, 240, 0.40); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }

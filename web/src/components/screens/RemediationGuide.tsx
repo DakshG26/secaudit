@@ -1,9 +1,5 @@
-import React, { useState } from 'react';
-import { 
-  Copy, 
-  Check, 
-  ShieldCheck
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Copy, Check, ShieldCheck } from 'lucide-react';
 import { Finding } from '../../types/security';
 
 interface RemediationGuideProps {
@@ -12,19 +8,33 @@ interface RemediationGuideProps {
 }
 
 export const RemediationGuide: React.FC<RemediationGuideProps> = ({
-  findings
+  findings = [],
+  selectedFindingId
 }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [lang, setLang] = useState<'python' | 'nodejs'>('python');
   const [copied, setCopied] = useState(false);
 
-  const steps = [
-    { title: 'Add Authentication', desc: 'Attach session or JWT authentication decorators to handler' },
-    { title: 'Enforce Authorization', desc: 'Verify caller permissions and tenant resource ownership' },
-    { title: 'Validate Input', desc: 'Replace dynamic interpolation with parameterized bindings' },
-    { title: 'Configure Security Headers', desc: 'Set CSP, HSTS, X-Content-Type-Options and CORS allowlist' },
-    { title: 'Retest Endpoint', desc: 'Run automated regression scan to verify fix before merging' },
-  ];
+  useEffect(() => {
+    if (selectedFindingId && findings.length > 0) {
+      const idx = findings.findIndex(f => f.id === selectedFindingId);
+      if (idx !== -1) setActiveStep(idx);
+    }
+  }, [selectedFindingId, findings]);
+
+  if (!findings || findings.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-[#E7E9F3] p-10 text-center shadow-xs animate-in fade-in">
+        <div className="w-14 h-14 rounded-2xl bg-[#16B887]/15 text-[#16B887] flex items-center justify-center mx-auto mb-3">
+          <ShieldCheck className="w-7 h-7" />
+        </div>
+        <h2 className="text-xl font-bold text-[#18213D]">Application Fully Hardened</h2>
+        <p className="text-xs text-[#77819D] mt-1.5 max-w-md mx-auto">
+          Zero vulnerabilities detected across your AST syntax trees and HTTP headers. All baseline security controls are active.
+        </p>
+      </div>
+    );
+  }
 
   const currentFinding = findings[activeStep] || findings[0];
 
@@ -34,79 +44,84 @@ export const RemediationGuide: React.FC<RemediationGuideProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const sampleVulnerableCode = lang === 'python' 
-    ? `@app.route('/admin')\ndef admin_panel():\n    # Vulnerable: missing @login_required\n    query = f"SELECT * FROM users WHERE role='{request.args.get('r')}'"\n    return db.execute(query).fetchall()`
-    : `app.get('/admin', async (req, res) => {\n  // Vulnerable: no auth middleware\n  const query = \`SELECT * FROM users WHERE role = '\${req.query.r}'\`;\n  return res.json(await db.query(query));\n});`;
-
-  const sampleFixedCode = lang === 'python'
-    ? `@app.route('/admin')\n@login_required\n@roles_required('admin')\ndef admin_panel():\n    # Hardened: parameterized prepared statement\n    query = "SELECT * FROM users WHERE role = %s"\n    return db.execute(query, (request.args.get('r'),)).fetchall()`
-    : `app.get('/admin', verifyJwt, requireRole('admin'), async (req, res) => {\n  // Hardened: parameterized prepared statement\n  const query = 'SELECT * FROM users WHERE role = $1';\n  return res.json(await db.query(query, [req.query.r]));\n});`;
+  const getLanguageSnippet = () => {
+    const loc = currentFinding.location || '/api';
+    if (lang === 'python') {
+      if (currentFinding.owasp === 'A02') {
+        return `# Python Flask-Talisman Fix for ${currentFinding.title}:\nfrom flask_talisman import Talisman\nTalisman(app, content_security_policy={\n    'default-src': \"'self'\",\n    'script-src': \"'self'\"\n}, force_https=True)`;
+      }
+      return `# Python Zero-Trust Fix for ${currentFinding.title}:\n@app.route('${loc}')\n@login_required\n@roles_required(['admin'])\ndef secure_handler():\n    # Parameterized query with strict access validation\n    return jsonify({"status": "protected", "verified": True})`;
+    }
+    // Node.js
+    if (currentFinding.owasp === 'A02') {
+      return `// Node.js Helmet Fix for ${currentFinding.title}:\nconst helmet = require('helmet');\napp.use(helmet.contentSecurityPolicy({\n  directives: {\n    defaultSrc: ["'self'"],\n    scriptSrc: ["'self'"]\n  }\n}));\napp.use(helmet.hsts({ maxAge: 31536000, includeSubDomains: true }));`;
+    }
+    return `// Node.js Express Zero-Trust Fix for ${currentFinding.title}:\napp.use('${loc}', verifyJwt, requireRole('admin'), (req, res) => {\n  // Parameterized query preventing injection & exposure\n  res.json({ status: "protected", verified: true });\n});`;
+  };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-5 animate-in fade-in duration-300">
       {/* Header */}
-      <div className="bg-white rounded-2xl border border-[#E7E9F3] p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl border border-[#E7E9F3] p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#16B887]/15 text-[#16B887]">
-              Step-by-Step Playbook
+              Playbook ({findings.length} Issues)
             </span>
-            <span className="text-xs text-[#77819D]">Automated Patch Generation</span>
+            <span className="text-xs text-[#77819D]">Verified Patch Generation</span>
           </div>
           <h2 className="text-2xl font-bold text-[#18213D] mt-1">Remediation Guide</h2>
-          <p className="text-xs text-[#77819D]">
-            Fix identified security gaps with verified zero-trust code snippets and verify them before deployment.
-          </p>
         </div>
 
         {/* Language Tabs */}
         <div className="flex items-center gap-1 p-1 bg-[#F7F8FC] border border-[#E7E9F3] rounded-xl self-start md:self-auto">
-          <button
-            onClick={() => setLang('python')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              lang === 'python' ? 'bg-[#6554F0] text-white shadow-xs' : 'text-[#77819D] hover:text-[#18213D]'
-            }`}
-          >
-            Python (Flask/FastAPI)
-          </button>
-          <button
-            onClick={() => setLang('nodejs')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              lang === 'nodejs' ? 'bg-[#6554F0] text-white shadow-xs' : 'text-[#77819D] hover:text-[#18213D]'
-            }`}
-          >
-            Node.js (Express)
-          </button>
+          {(['python', 'nodejs'] as const).map(l => (
+            <button
+              key={l}
+              onClick={() => setLang(l)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                lang === l ? 'bg-[#6554F0] text-white shadow-xs' : 'text-[#77819D] hover:text-[#18213D]'
+              }`}
+            >
+              {l === 'python' ? 'Python' : 'Node.js / Web'}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Main Grid: Steps list on left, Code Diff on right */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: Numbered Steps */}
-        <div className="lg:col-span-4 space-y-3">
-          {steps.map((s, idx) => {
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Left: Steps list */}
+        <div className="lg:col-span-4 space-y-2 max-h-[520px] overflow-y-auto pr-1">
+          {findings.map((f, idx) => {
             const isActive = activeStep === idx;
+            const isHigh = f.severity === 'critical' || f.severity === 'high';
             return (
               <div
-                key={idx}
+                key={f.id || idx}
                 onClick={() => setActiveStep(idx)}
-                className={`p-4 rounded-xl border transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-[#F0EDFF] border-[#6554F0] shadow-sm'
-                    : 'bg-white border-[#E7E9F3] hover:border-[#6554F0]/30'
+                className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                  isActive ? 'bg-[#F0EDFF] border-[#6554F0] shadow-xs' : 'bg-white border-[#E7E9F3] hover:border-[#6554F0]/30'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${
+                <div className="flex items-start gap-2.5">
+                  <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 ${
                     isActive ? 'bg-[#6554F0] text-white' : 'bg-[#F7F8FC] text-[#77819D] border border-[#E7E9F3]'
                   }`}>
                     {idx + 1}
                   </div>
-                  <div className="flex-1">
-                    <h4 className={`text-xs font-bold ${isActive ? 'text-[#6554F0]' : 'text-[#18213D]'}`}>
-                      {s.title}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1">
+                      <span className={`text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded ${
+                        isHigh ? 'bg-[#F45D75]/15 text-[#F45D75]' : 'bg-[#FFAD42]/15 text-[#FFAD42]'
+                      }`}>
+                        {f.severity}
+                      </span>
+                      <span className="text-[10px] font-mono text-[#77819D] truncate">{f.owasp}</span>
+                    </div>
+                    <h4 className={`text-xs font-bold mt-0.5 truncate ${isActive ? 'text-[#6554F0]' : 'text-[#18213D]'}`}>
+                      {f.title}
                     </h4>
-                    <p className="text-[11px] text-[#77819D] mt-0.5 line-clamp-1">{s.desc}</p>
                   </div>
                 </div>
               </div>
@@ -114,58 +129,57 @@ export const RemediationGuide: React.FC<RemediationGuideProps> = ({
           })}
         </div>
 
-        {/* Right: Code comparison & Success Panel */}
-        <div className="lg:col-span-8 space-y-4">
-          {/* Active Target Banner */}
-          <div className="bg-white rounded-xl border border-[#E7E9F3] p-4 flex items-center justify-between">
+        {/* Right: Code comparison */}
+        <div className="lg:col-span-8 space-y-3.5">
+          <div className="bg-white rounded-xl border border-[#E7E9F3] p-3.5 flex items-center justify-between">
             <div>
-              <div className="text-[11px] font-mono text-[#6554F0] uppercase font-bold">Current Action Item</div>
-              <div className="text-sm font-bold text-[#18213D]">{steps[activeStep].title}</div>
+              <div className="text-[10px] font-mono text-[#6554F0] uppercase font-bold">Step #{activeStep + 1}</div>
+              <div className="text-sm font-bold text-[#18213D]">{currentFinding.title}</div>
             </div>
-            <span className="text-xs font-mono text-[#77819D] bg-[#F7F8FC] px-2.5 py-1 rounded-lg border border-[#E7E9F3]">
-              {currentFinding?.location || 'app.py:52'}
+            <span className="text-xs font-mono text-[#77819D] bg-[#F7F8FC] px-2 py-0.5 rounded border border-[#E7E9F3]">
+              {currentFinding.location || 'HTTP Header'}
             </span>
           </div>
 
           {/* Vulnerable Code Panel */}
           <div className="bg-[#18213D] rounded-xl border border-[#F45D75]/30 overflow-hidden text-xs font-mono">
-            <div className="px-4 py-2 bg-[#F45D75]/15 border-b border-[#F45D75]/25 flex items-center justify-between text-[#F45D75]">
+            <div className="px-3.5 py-1.5 bg-[#F45D75]/15 border-b border-[#F45D75]/25 flex items-center justify-between text-[#F45D75]">
               <span className="font-semibold flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#F45D75]" /> Vulnerable Code
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F45D75]" /> Vulnerable Code / Evidence
               </span>
-              <span className="text-[10px] text-white/60">Do not deploy</span>
+              <span className="text-[10px] text-white/60">Identified Vulnerability</span>
             </div>
-            <pre className="p-4 text-[#F87171] overflow-x-auto leading-relaxed">
-              <code>{currentFinding?.evidence ? `# Location: ${currentFinding.location}\n${currentFinding.evidence}` : sampleVulnerableCode}</code>
+            <pre className="p-3 text-[#F87171] overflow-x-auto leading-relaxed max-h-36">
+              <code>{currentFinding.evidence || `// Vulnerable finding in ${currentFinding.location}\n${currentFinding.title}`}</code>
             </pre>
           </div>
 
           {/* Recommended Fix Code Panel */}
           <div className="bg-[#0E1326] rounded-xl border border-[#16B887]/40 overflow-hidden text-xs font-mono">
-            <div className="px-4 py-2 bg-[#16B887]/15 border-b border-[#16B887]/30 flex items-center justify-between text-[#16B887]">
+            <div className="px-3.5 py-1.5 bg-[#16B887]/15 border-b border-[#16B887]/30 flex items-center justify-between text-[#16B887]">
               <span className="font-semibold flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#16B887]" /> Recommended Zero-Trust Fix
+                <span className="w-1.5 h-1.5 rounded-full bg-[#16B887]" /> Recommended Zero-Trust Fix ({lang === 'python' ? 'Python' : 'Node.js'})
               </span>
               <button
-                onClick={() => handleCopy(currentFinding?.fixed_code || sampleFixedCode)}
-                className="text-[11px] text-white hover:text-[#16B887] flex items-center gap-1 cursor-pointer transition-colors"
+                onClick={() => handleCopy(getLanguageSnippet())}
+                className="text-[11px] text-white hover:text-[#16B887] flex items-center gap-1 cursor-pointer"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-[#16B887]" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? <Check className="w-3 h-3 text-[#16B887]" /> : <Copy className="w-3 h-3" />}
                 {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
-            <pre className="p-4 text-[#4ADE80] overflow-x-auto leading-relaxed">
-              <code>{currentFinding?.fixed_code || sampleFixedCode}</code>
+            <pre className="p-3 text-[#4ADE80] overflow-x-auto leading-relaxed max-h-40">
+              <code>{getLanguageSnippet()}</code>
             </pre>
           </div>
 
-          {/* Expected Security Improvement (Green Success Panel) */}
-          <div className="bg-[#16B887]/10 border border-[#16B887]/30 rounded-xl p-4 flex items-start gap-3">
-            <ShieldCheck className="w-5 h-5 text-[#16B887] shrink-0 mt-0.5" />
+          {/* Expected Security Improvement */}
+          <div className="bg-[#16B887]/10 border border-[#16B887]/30 rounded-xl p-3 flex items-start gap-2.5">
+            <ShieldCheck className="w-4 h-4 text-[#16B887] shrink-0 mt-0.5" />
             <div className="text-xs">
               <h5 className="font-bold text-[#16B887]">Expected Security Improvement</h5>
-              <p className="text-[#18213D] mt-1 leading-relaxed">
-                Applying this fix ensures mandatory authentication check and parameter binding prior to handler execution. Unauthenticated calls will be rejected with HTTP 401/403, and SQL injection syntax will be treated purely as literal string values.
+              <p className="text-[#18213D] mt-0.5 leading-relaxed">
+                {currentFinding.remediation || 'Remediating this finding enforces parameterization and access controls.'}
               </p>
             </div>
           </div>

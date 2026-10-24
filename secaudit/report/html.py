@@ -17,8 +17,9 @@ Sections:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 from jinja2 import Environment, BaseLoader
 
@@ -158,7 +159,7 @@ REPORT_TEMPLATE = r"""<!DOCTYPE html>
     {% if result.access_matrix %}<a href="#matrix">Access Control Matrix</a>{% endif %}
     {% if result.chains %}<a href="#chains">Attack Chains</a>{% endif %}
     <a href="#findings">Findings ({{ active_findings|length }})</a>
-    {% if result.ignored %}<a href="#ignored">Ignored Findings ({{ result.ignored|length }})</a>{% endif %}
+     {% if ignored_findings %}<a href="#ignored">Ignored Findings ({{ ignored_findings|length }})</a>{% endif %}
     <a href="#owasp">OWASP Coverage</a>
     <a href="#appendix">Appendix: Formula &amp; Limitations</a>
   </div>
@@ -178,10 +179,14 @@ REPORT_TEMPLATE = r"""<!DOCTYPE html>
       <div class="number" style="color:var(--color-medium)">{{ result.stats.get('medium', 0) }}</div>
       <div class="label">Medium</div>
     </div>
-    <div class="stat-card">
-      <div class="number" style="color:var(--color-low)">{{ result.stats.get('low', 0) }}</div>
-      <div class="label">Low</div>
-    </div>
+     <div class="stat-card">
+       <div class="number" style="color:var(--color-low)">{{ result.stats.get('low', 0) }}</div>
+       <div class="label">Low</div>
+     </div>
+     <div class="stat-card">
+       <div class="number" style="color:var(--color-info)">{{ result.stats.get('info', 0) }}</div>
+       <div class="label">Info</div>
+     </div>
     <div class="stat-card">
       <div class="number">{{ active_findings|length }}</div>
       <div class="label">Total Active</div>
@@ -202,15 +207,20 @@ REPORT_TEMPLATE = r"""<!DOCTYPE html>
   {% if result.endpoints %}
   <table>
     <tr>
-      <th>Method</th><th>Path</th><th>Handler</th><th>Auth Decorators</th>
-      <th>Protected</th><th>Location</th>
+       <th>Method</th><th>Path</th><th>Handler</th><th>Auth Decorators</th>
+       <th>Path Params</th><th>Request Inputs</th><th>Protected</th><th>Location</th>
     </tr>
     {% for ep in result.endpoints %}
     <tr class="{{ 'open-route' if not ep.is_protected else '' }}">
       <td><code>{{ ep.method|join(', ') }}</code></td>
       <td><code>{{ ep.path }}</code></td>
       <td><code>{{ ep.handler }}</code></td>
-      <td>{{ ep.auth_decorators|join(', ') or '<span style="color:#dc2626">none</span>' }}</td>
+       <td>
+         {% if ep.auth_decorators %}{{ ep.auth_decorators|join(', ') }}
+         {% else %}<span style="color:#dc2626">none</span>{% endif %}
+       </td>
+       <td><code>{{ ep.path_params|join(', ') or '—' }}</code></td>
+       <td><code>{{ ep.request_inputs|join(', ') or '—' }}</code></td>
       <td>{{ '✅' if ep.is_protected else '❌ OPEN' }}</td>
       <td style="font-size:0.8rem;color:#64748b">{{ ep.location }}</td>
     </tr>
@@ -271,11 +281,22 @@ REPORT_TEMPLATE = r"""<!DOCTYPE html>
   <!-- 5. Findings -->
   <h2 id="findings" class="section-anchor">Findings ({{ active_findings|length }} active)</h2>
 
-  {% set owasp_cats = ['A01','A02','A03','A04','A05','A09','A10'] %}
-  {% for owasp in owasp_cats %}
-    {% set cat_findings = active_findings|selectattr('owasp','equalto',owasp)|list %}
-    {% if cat_findings %}
-    <h3>{{ owasp }} — {{ cat_findings[0].owasp if cat_findings else '' }}
+   {% set owasp_map = {
+     'A01': 'Broken Access Control',
+     'A02': 'Security Misconfiguration',
+     'A03': 'Software Supply Chain Failures',
+     'A04': 'Cryptographic Failures',
+     'A05': 'Injection',
+     'A06': 'Vulnerable Components',
+     'A07': 'Auth & Identity Failures',
+     'A08': 'Software & Data Integrity',
+     'A09': 'Logging & Alerting Failures',
+     'A10': 'Mishandling Exceptional Conditions'
+   } %}
+   {% for owasp, owasp_name in owasp_map.items() %}
+     {% set cat_findings = active_findings|selectattr('owasp','equalto',owasp)|list %}
+     {% if cat_findings %}
+     <h3>{{ owasp }} — {{ owasp_name }}
       ({{ cat_findings|length }} finding{{ 's' if cat_findings|length != 1 else '' }})
     </h3>
     {% for f in cat_findings|sort(attribute='severity') %}
@@ -305,15 +326,15 @@ REPORT_TEMPLATE = r"""<!DOCTYPE html>
   {% endfor %}
 
   <!-- 6. Ignored Findings -->
-  {% if result.ignored %}
-  <div class="ignored-section">
-  <h2 id="ignored" class="section-anchor">Ignored Findings ({{ result.ignored|length }})</h2>
+   {% if ignored_findings %}
+   <div class="ignored-section">
+   <h2 id="ignored" class="section-anchor">Ignored Findings ({{ ignored_findings|length }})</h2>
   <p style="color:#64748b;margin-bottom:1rem">
     These findings were suppressed by .secauditignore or inline comment. Listed for transparency.
   </p>
   <table>
     <tr><th>ID</th><th>Rule</th><th>Title</th><th>Location</th><th>Reason</th></tr>
-    {% for f in result.ignored %}
+     {% for f in ignored_findings %}
     <tr>
       <td>{{ f.id }}</td>
       <td>{{ f.rule_id }}</td>
@@ -392,6 +413,63 @@ REPORT_TEMPLATE = r"""<!DOCTYPE html>
 # Render function
 # ---------------------------------------------------------------------------
 
+def _field(value: Any, name: str, default: Any = None) -> Any:
+    """Read a model attribute or a JSON report mapping uniformly."""
+    if isinstance(value, Mapping):
+        return value.get(name, default)
+    return getattr(value, name, default)
+
+
+def _finding_identity(finding: Any) -> tuple[str, Any]:
+    """Return a stable identity for de-duplicating ignored findings."""
+    finding_id = _field(finding, "id")
+    if finding_id not in (None, ""):
+        return ("id", str(finding_id))
+    return ("object", id(finding))
+
+
+def _report_findings(result: Any) -> tuple[Any, list[Any], list[Any]]:
+    """Prepare active and ignored findings without changing caller-owned data.
+
+    Older callers put ignored findings only in ``findings`` while the CLI puts
+    them in the dedicated ``ignored`` collection.  Reports should render both
+    shapes consistently, and should not duplicate an ignored item when a
+    result contains it in both collections.
+    """
+    report_mapping: dict[str, Any] | None = None
+    if isinstance(result, Mapping):
+        # Make a shallow copy so defaults and normalized collections do not
+        # mutate a dictionary loaded from an existing JSON report.
+        report_mapping = dict(result)
+        result = report_mapping
+        raw_findings = list(report_mapping.get("findings") or [])
+        explicit_ignored = list(report_mapping.get("ignored") or [])
+    else:
+        raw_findings = list(_field(result, "findings", []) or [])
+        explicit_ignored = list(_field(result, "ignored", []) or [])
+
+    active = [f for f in raw_findings if not _field(f, "ignored", False)]
+    ignored: list[Any] = []
+    ignored_ids: set[tuple[str, Any]] = set()
+    for finding in [*raw_findings, *explicit_ignored]:
+        is_explicit = finding in explicit_ignored
+        if not is_explicit and not _field(finding, "ignored", False):
+            continue
+        identity = _finding_identity(finding)
+        if identity not in ignored_ids:
+            ignored_ids.add(identity)
+            ignored.append(finding)
+
+    if report_mapping is not None:
+        report_mapping["ignored"] = ignored
+        report_mapping.setdefault("endpoints", [])
+        report_mapping.setdefault("access_matrix", [])
+        report_mapping.setdefault("chains", [])
+        report_mapping.setdefault("stats", {})
+
+    return result, active, ignored
+
+
 def render_html_report(result: ScanResult, output_path: str) -> None:
     """
     Render the HTML report to a file.
@@ -401,17 +479,46 @@ def render_html_report(result: ScanResult, output_path: str) -> None:
     result      : Completed ScanResult with findings, endpoints, etc.
     output_path : Path where the HTML file should be written.
     """
-    result.compute_stats()
-    active = result.active_findings()
+    if hasattr(result, "compute_stats"):
+        result.compute_stats()
 
-    env = Environment(loader=BaseLoader())
+    result, active, ignored = _report_findings(result)
+
+    # Keep the renderer useful for callers that pass an already-serialized
+    # report mapping.  ScanResult remains the canonical API, but JSON reports
+    # are a natural input for offline report regeneration.
+    if isinstance(result, dict):
+        raw_stats = result.get("stats") or {}
+        if result.get("findings") is not None:
+            stats = {}
+            for finding in active:
+                severity = str(_field(finding, "severity", ""))
+                if severity:
+                    stats[severity] = stats.get(severity, 0) + 1
+            result["stats"] = {
+                **{severity: stats.get(severity, 0) for severity in SEVERITY_COLORS},
+                **{
+                    key: value
+                    for key, value in raw_stats.items()
+                    if key not in SEVERITY_COLORS
+                },
+            }
+
+    # ``BaseLoader`` has no filename from which Jinja can infer an autoescape
+    # policy.  Reports contain source paths, evidence, and rule text supplied
+    # by the scanned project, so explicitly enable HTML escaping for every
+    # value rendered into this template.
+    env = Environment(loader=BaseLoader(), autoescape=True)
     template = env.from_string(REPORT_TEMPLATE)
 
     html = template.render(
         result=result,
         active_findings=active,
+        ignored_findings=ignored,
         severity_colors=SEVERITY_COLORS,
         status_colors=STATUS_COLORS,
     )
 
-    Path(output_path).write_text(html, encoding="utf-8")
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(html, encoding="utf-8")

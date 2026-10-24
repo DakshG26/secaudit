@@ -32,41 +32,47 @@ export const AccessMatrix: React.FC<AccessMatrixProps> = ({ matrix }) => {
           </p>
         </div>
         <div className="flex items-center gap-1 p-1 bg-surface border border-divider rounded-xl text-xs font-mono">
-          <button onClick={() => setFilter('ALL')} className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${filter === 'ALL' ? 'bg-primary text-white font-semibold' : 'text-muted hover:text-ink'}`}>
+          <button type="button" onClick={() => setFilter('ALL')} aria-pressed={filter === 'ALL'} className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${filter === 'ALL' ? 'bg-primary text-white font-semibold' : 'text-muted hover:text-ink'}`}>
             All ({matrix.length})
           </button>
-          <button onClick={() => setFilter('VIOLATION')} className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${filter === 'VIOLATION' ? 'bg-red-500 text-white font-semibold' : 'text-muted hover:text-ink'}`}>
+          <button type="button" onClick={() => setFilter('VIOLATION')} aria-pressed={filter === 'VIOLATION'} className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${filter === 'VIOLATION' ? 'bg-red-500 text-white font-semibold' : 'text-muted hover:text-ink'}`}>
             Violations ({violations})
           </button>
-          <button onClick={() => setFilter('UNCOVERED')} className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${filter === 'UNCOVERED' ? 'bg-purple-500 text-white font-semibold' : 'text-muted hover:text-ink'}`}>
+          <button type="button" onClick={() => setFilter('UNCOVERED')} aria-pressed={filter === 'UNCOVERED'} className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${filter === 'UNCOVERED' ? 'bg-purple-500 text-white font-semibold' : 'text-muted hover:text-ink'}`}>
             Uncovered
           </button>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border-2 border-divider bg-surface shadow-sm">
-        <table className="w-full text-sm">
+      <div className="max-w-full overflow-x-auto rounded-2xl border-2 border-divider bg-surface shadow-sm">
+        <table className="w-full min-w-[700px] text-sm">
           <thead className="bg-background border-b border-divider text-xs font-mono uppercase tracking-wider text-muted">
             <tr>
-              <th className="py-3 px-4 text-left">Method</th>
-              <th className="py-3 px-4 text-left">Route</th>
-              <th className="py-3 px-4 text-left">Required Auth</th>
-              <th className="py-3 px-4 text-left">Actual Code Auth</th>
-              <th className="py-3 px-4 text-right">Status</th>
+              <th scope="col" className="py-3 px-4 text-left">Method</th>
+              <th scope="col" className="py-3 px-4 text-left">Route</th>
+              <th scope="col" className="py-3 px-4 text-left">Required Auth</th>
+              <th scope="col" className="py-3 px-4 text-left">Actual Code Auth</th>
+              <th scope="col" className="py-3 px-4 text-right">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-divider">
-            {shown.map((row, i) => {
+            {shown.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted">
+                  No routes match this policy filter.
+                </td>
+              </tr>
+            ) : shown.map(row => {
               const cfg = STATUS_CONFIG[row.status];
               const Icon = cfg.icon;
               return (
-                <tr key={i} className="hover:bg-background/60 transition-colors">
+                <tr key={`${row.method}:${row.path}:${row.expected}`} className="hover:bg-background/60 transition-colors">
                   <td className="py-2.5 px-4">
                     <span className="px-2 py-0.5 rounded-md text-xs font-mono font-bold bg-primary/10 text-primary border border-primary/20">
                       {row.method}
                     </span>
                   </td>
-                  <td className="py-2.5 px-4 font-mono text-sm font-semibold text-ink">{row.path}</td>
+                  <td className="py-2.5 px-4 font-mono text-sm font-semibold text-ink whitespace-nowrap">{row.path}</td>
                   <td className="py-2.5 px-4 font-mono text-xs text-primary">{row.expected}</td>
                   <td className="py-2.5 px-4 font-mono text-xs">
                     {row.auth_decorators.length > 0

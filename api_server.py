@@ -9,12 +9,15 @@ and returns structured vulnerability findings, attack chains, and policy matrice
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shutil
 import subprocess
 import tempfile
+from datetime import date, datetime
 from pathlib import Path
+from typing import Any, List, Mapping, Optional
 from urllib.parse import urlparse
 import requests
 from flask import Flask, request, jsonify
@@ -28,6 +31,8 @@ from secaudit.web_scanner import scan_live_website
 
 app = Flask(__name__)
 
+logger = logging.getLogger(__name__)
+
 # Base paths
 ROOT_DIR = Path(__file__).parent.resolve()
 DEMO_APP = ROOT_DIR / "demo_app"
@@ -35,17 +40,95 @@ DEMO_FIXED = ROOT_DIR / "demo_app_fixed"
 
 
 ALLOWED_ORIGINS = {"http://localhost:5173", "http://127.0.0.1:5173"}
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+GITHUB_HOSTS = {"github.com", "www.github.com"}
+MAX_TARGET_LENGTH = 2048
+
+
+def _allowed_origin(origin: str) -> Optional[str]:
+    """Return a permitted development origin, or ``None`` for other origins."""
+    if not origin:
+        return None
+    if origin in ALLOWED_ORIGINS:
+        return origin
+
+    # Vite may choose another local port when 5173 is occupied.  Parse the
+    # origin instead of using a prefix check so localhost.example is rejected.
+    try:
+        parsed = urlparse(origin)
+        if (
+            parsed.scheme == "http"
+            and parsed.hostname in LOCAL_HOSTS
+            and not parsed.username
+            and not parsed.password
+            and not parsed.path
+            and not parsed.query
+            and not parsed.fragment
+        ):
+            return origin
+    except ValueError:
+        pass
+    return None
 
 @app.after_request
 def add_cors_headers(response):
     origin = request.headers.get("Origin", "")
-    if origin in ALLOWED_ORIGINS or origin.startswith("http://localhost:"):
-        response.headers["Access-Control-Allow-Origin"] = origin
-    else:
-        response.headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
+    allowed_origin = _allowed_origin(origin)
+    response.headers.pop("Access-Control-Allow-Origin", None)
+    if allowed_origin:
+        response.headers["Access-Control-Allow-Origin"] = allowed_origin
+        response.headers.add("Vary", "Origin")
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    if request.method == "OPTIONS":
+        response.headers["Access-Control-Max-Age"] = "600"
     return response
+
+
+def _json_default(value: Any) -> Any:
+    """Convert model/path/time values used by this API to JSON primitives."""
+    if hasattr(value, "to_dict"):
+        return value.to_dict()
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
+def _json_response(payload: Any, status: int = 200):
+    """Validate and return a JSON response with one consistent error shape."""
+    try:
+        normalized = json.loads(json.dumps(payload, default=_json_default))
+    except (TypeError, ValueError):
+        logger.exception("Unable to serialize API response")
+        normalized = {"error": "Unable to serialize API response"}
+        status = 500
+    return jsonify(normalized), status
+
+
+def _error_response(message: str, status: int):
+    return _json_response({"error": message}, status)
+
+
+@app.errorhandler(400)
+def bad_request(_error):
+    return _error_response("Invalid request", 400)
+
+
+@app.errorhandler(404)
+def not_found(_error):
+    return _error_response("Not found", 404)
+
+
+@app.errorhandler(405)
+def method_not_allowed(_error):
+    return _error_response("Method not allowed", 405)
+
+
+@app.errorhandler(500)
+def internal_error(_error):
+    return _error_response("Internal server error", 500)
 
 
 @app.route("/api/health", methods=["GET"])
@@ -232,6 +315,181 @@ def _extract_js_and_fallback_endpoints(target_dir: str) -> List[Endpoint]:
             ))
 
     return endpoints
+
+
+def _scan_score(findings: List[Finding]) -> tuple[List[Finding], dict, int, str]:
+    """Compute one score/stats shape for every static or local scan response."""
+    active = [f for f in findings if not getattr(f, "ignored", False)]
+    counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
+    for finding in active:
+        severity = getattr(finding, "severity", "info")
+        counts[severity] = counts.get(severity, 0) + 1
+
+    deduction = (
+        min(40, counts.get("critical", 0) * 15)
+        + min(25, counts.get("high", 0) * 8)
+        + min(15, counts.get("medium", 0) * 4)
+        + min(10, counts.get("low", 0) * 2)
+    )
+    score = max(10, min(100, 100 - deduction))
+    status = "clean" if score >= 85 else ("warning" if score >= 60 else "compromised")
+    counts["total"] = len(active)
+    return active, counts, score, status
+
+
+def _clean_location(location: Any, target_path: Path) -> str:
+    """Make absolute scanner locations relative without rewriting URLs."""
+    if not location:
+        return ""
+    location_text = str(location)
+    try:
+        location_path = Path(location_text)
+        if location_path.is_absolute():
+            return str(location_path.relative_to(target_path))
+    except (OSError, ValueError):
+        pass
+    return location_text
+
+
+def _static_scan_response(
+    target: str,
+    target_path: Path,
+    findings: List[Finding],
+    endpoints: List[Endpoint],
+    access_matrix: List[AccessMatrixRow],
+    chains: List[AttackChain],
+):
+    """Build the canonical ScanResult-compatible API response."""
+    active, counts, score, status = _scan_score(findings)
+    clean_findings = []
+    for finding in active:
+        payload = finding.to_dict()
+        payload["location"] = _clean_location(payload.get("location"), target_path)
+        clean_findings.append(payload)
+
+    clean_endpoints = []
+    for endpoint in endpoints:
+        payload = endpoint.to_dict()
+        payload["location"] = _clean_location(payload.get("location"), target_path)
+        clean_endpoints.append(payload)
+
+    result = {
+        "target": target,
+        "scan_time": datetime.now(timezone.utc).isoformat(),
+        "score": score,
+        "status": status,
+        "stats": counts,
+        "findings": clean_findings,
+        "endpoints": clean_endpoints,
+        "access_matrix": [row.to_dict() for row in access_matrix],
+        "chains": [chain.to_dict() for chain in chains],
+    }
+    return _json_response(result)
+
+
+def _resolve_local_target(value: str) -> Optional[Path]:
+    """Resolve an existing local directory or Python source file safely."""
+    try:
+        candidate = Path(value).expanduser().resolve(strict=True)
+    except (OSError, RuntimeError, ValueError):
+        return None
+    if candidate.is_dir() or (candidate.is_file() and candidate.suffix.lower() == ".py"):
+        return candidate
+    return None
+
+
+def _canonical_http_url(value: str) -> str:
+    """Validate an HTTP(S) URL and remove fragments before network access."""
+    parsed = urlparse(value)
+    if parsed.scheme.lower() not in {"http", "https"}:
+        raise ValueError("Target URL must use http:// or https://")
+    try:
+        # Accessing port validates malformed values such as :not-a-port.
+        _ = parsed.port
+    except ValueError as exc:
+        raise ValueError("Target URL contains an invalid port") from exc
+    if not parsed.hostname or parsed.username or parsed.password:
+        raise ValueError("Target URL must contain a host and no credentials")
+    if any(ord(char) < 32 for char in value):
+        raise ValueError("Target URL contains invalid control characters")
+    return parsed._replace(fragment="").geturl()
+
+
+def _canonical_github_url(value: str) -> tuple[str, str]:
+    """Validate a public GitHub owner/repository URL."""
+    canonical = _canonical_http_url(value)
+    parsed = urlparse(canonical)
+    if parsed.hostname.lower() not in GITHUB_HOSTS:
+        raise ValueError("Repository target must be hosted on github.com")
+    if parsed.query:
+        raise ValueError("Repository URL must not contain a query string")
+
+    parts = [part for part in parsed.path.split("/") if part]
+    if len(parts) != 2:
+        raise ValueError("GitHub URL must identify exactly one owner and repository")
+    owner, repository = parts
+    if repository.endswith(".git"):
+        repository = repository[:-4]
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", owner) or not re.fullmatch(
+        r"[A-Za-z0-9][A-Za-z0-9_.-]*", repository
+    ):
+        raise ValueError("GitHub URL contains an invalid owner or repository")
+    canonical = f"https://github.com/{owner}/{repository}"
+    return canonical, repository.lower()
+
+
+def _normalize_target(value: str) -> tuple[str, str, Any]:
+    """Classify a user target as demo, local, repository, or live URL."""
+    candidate = value.strip()
+    if not candidate:
+        raise ValueError("Target URL or repository path is required")
+    if len(candidate) > MAX_TARGET_LENGTH:
+        raise ValueError(f"Target must be at most {MAX_TARGET_LENGTH} characters")
+    if "\x00" in candidate or any(ord(char) < 32 for char in candidate):
+        raise ValueError("Target contains invalid control characters")
+
+    demo_aliases = {
+        "demo_app": ("demo", DEMO_APP),
+        "vulnerable": ("demo", DEMO_APP),
+        "sample:vulnerable": ("demo", DEMO_APP),
+        "demo_app_fixed": ("demo_fixed", DEMO_FIXED),
+        "fixed": ("demo_fixed", DEMO_FIXED),
+        "clean": ("demo_fixed", DEMO_FIXED),
+        "sample:clean": ("demo_fixed", DEMO_FIXED),
+        "hardened": ("demo_fixed", DEMO_FIXED),
+    }
+    if candidate in demo_aliases:
+        kind, path = demo_aliases[candidate]
+        return candidate, kind, path.resolve()
+
+    # Existing paths take precedence over the owner/repository shorthand.
+    local_path = _resolve_local_target(candidate)
+    if local_path is not None:
+        return candidate, "local", local_path
+
+    normalized = candidate
+    if normalized.startswith(("github.com/", "www.github.com/")):
+        normalized = "https://" + normalized
+    elif re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", normalized):
+        normalized = "https://github.com/" + normalized
+    elif re.fullmatch(r"(?:localhost|127\.0\.0\.1)(?::\d+)?(?:/.*)?", normalized) or re.fullmatch(
+        r"\[::1\](?::\d+)?(?:/.*)?", normalized
+    ):
+        normalized = "http://" + normalized
+    elif "://" not in normalized and "." in normalized.split("/", 1)[0]:
+        normalized = "https://" + normalized
+
+    canonical = _canonical_http_url(normalized)
+    parsed = urlparse(canonical)
+    hostname = parsed.hostname.lower()
+    if hostname in GITHUB_HOSTS:
+        repository_url, repository_name = _canonical_github_url(canonical)
+        if repository_name == "ai-web-vulnerable":
+            return repository_url, "demo", DEMO_APP.resolve()
+        if repository_name == "hardened-enterprise-service" or repository_name.startswith("hardened-"):
+            return repository_url, "demo_fixed", DEMO_FIXED.resolve()
+        return repository_url, "repository", repository_url
+    return canonical, "live", canonical
 
 
 @app.route("/api/scan", methods=["POST", "OPTIONS"])

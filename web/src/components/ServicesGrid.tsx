@@ -26,7 +26,7 @@ export const ServicesGrid: React.FC = () => {
           {services.map(svc => {
             const Icon = svc.icon;
             return (
-              <div key={svc.owasp} className="p-7 bg-deep hover:bg-white/5 transition-colors group flex flex-col justify-between">
+              <article key={svc.owasp} className="p-6 sm:p-7 bg-deep hover:bg-white/5 transition-colors group flex min-h-[250px] flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-5">
                     <div className="p-3 rounded-2xl bg-primary/15 border border-primary/25 text-primary-light group-hover:scale-105 transition-transform">
@@ -44,7 +44,7 @@ export const ServicesGrid: React.FC = () => {
                     SecAudit checks this →
                   </span>
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>

@@ -129,7 +129,14 @@ def scan_live_website(target_url: str) -> Dict[str, Any]:
     # 4. Check HSTS (Strict-Transport-Security)
     hsts = headers.get("Strict-Transport-Security", "")
     # Note: Major apex domains (like google.com) pre-load HSTS in all browsers via Chrome HSTS preload list
-    is_preloaded_domain = any(final_hostname.endswith(d) for d in ["google.com", "github.com", "apple.com", "cloudflare.com", "microsoft.com", "amazon.com"])
+    # Match only the actual apex domain or one of its subdomains.  A plain
+    # ``endswith`` would incorrectly treat lookalikes such as
+    # ``notgoogle.com`` as preloaded.
+    preloaded_domains = ("google.com", "github.com", "apple.com", "cloudflare.com", "microsoft.com", "amazon.com")
+    is_preloaded_domain = any(
+        final_hostname == domain or final_hostname.endswith(f".{domain}")
+        for domain in preloaded_domains
+    )
     if not hsts and is_https and not is_preloaded_domain:
         findings.append(
             Finding(
@@ -246,9 +253,16 @@ def scan_live_website(target_url: str) -> Dict[str, Any]:
             continue
         seen_cookie_names.add(cookie_name)
 
-        c_lower = cookie_header.lower()
-        has_secure = "secure" in c_lower
-        has_httponly = "httponly" in c_lower
+        # Cookie attributes are semicolon-delimited tokens.  Looking for a
+        # substring would mistake values such as ``session=securely-token``
+        # for the Secure attribute.
+        cookie_attributes = {
+            part.split("=", 1)[0].strip().lower()
+            for part in c_parts[1:]
+            if part.strip()
+        }
+        has_secure = "secure" in cookie_attributes
+        has_httponly = "httponly" in cookie_attributes
 
         # Session or sensitive cookie check
         is_sensitive = any(k in cookie_name.lower() for k in ["session", "auth", "token", "jwt", "login", "id", "strp", "sec"])
@@ -319,28 +333,51 @@ def scan_live_website(target_url: str) -> Dict[str, Any]:
         pass
 
     # 11. Extract HTML Routes & Construct Endpoint Graph
-    extracted_paths = set()
-    extracted_paths.add("/")
+    extracted_routes: Dict[str, set[str]] = {"/": {"GET"}}
     if html_text:
         raw_hrefs = re.findall(r'href=[\"\']([^\"\'\s>]+)', html_text)
         for h in raw_hrefs:
             if h.startswith("/"):
                 path_only = h.split("?")[0].split("#")[0]
                 if path_only and len(path_only) < 50 and not path_only.endswith((".png", ".jpg", ".css", ".js", ".ico")):
-                    extracted_paths.add(path_only)
+                    extracted_routes.setdefault(path_only, set()).add("GET")
             elif h.startswith("http"):
                 p = urlparse(h)
                 if p.netloc == final_hostname and p.path:
-                    extracted_paths.add(p.path.split("?")[0])
+                    extracted_routes.setdefault(p.path.split("?")[0], set()).add("GET")
 
-    sorted_paths = sorted(list(extracted_paths))[:20]
+        # Forms are part of the reachable endpoint graph too.  Preserve the
+        # declared method instead of silently representing every action as GET.
+        for form_tag in re.findall(r"<form\b[^>]*>", html_text, flags=re.IGNORECASE):
+            action_match = re.search(r"\baction\s*=\s*['\"]([^'\"]+)['\"]", form_tag, flags=re.IGNORECASE)
+            if not action_match:
+                continue
+            action = action_match.group(1).strip()
+            method_match = re.search(r"\bmethod\s*=\s*['\"]([^'\"]+)['\"]", form_tag, flags=re.IGNORECASE)
+            method = (method_match.group(1).upper() if method_match else "GET")
+            if method not in {"GET", "POST"}:
+                method = "GET"
+            if action.startswith("/"):
+                path = action.split("?")[0].split("#")[0]
+            elif action.startswith("http"):
+                action_url = urlparse(action)
+                if action_url.netloc != final_hostname:
+                    continue
+                path = action_url.path or "/"
+            else:
+                path = urlparse(urljoin(origin + "/", action)).path or "/"
+            if path and len(path) < 100 and not path.endswith((".png", ".jpg", ".css", ".js", ".ico")):
+                extracted_routes.setdefault(path, set()).add(method)
+
+    sorted_paths = sorted(extracted_routes)[:20]
     for p in sorted_paths:
         is_admin = any(k in p.lower() for k in ["admin", "dashboard", "manage", "control", "private"])
         is_auth = any(k in p.lower() for k in ["login", "signin", "auth", "token", "session"])
         is_prot = is_auth or is_admin
 
+        methods = sorted(extracted_routes[p])
         ep = Endpoint(
-            method=["GET"],
+            method=methods,
             path=p,
             handler="page_handler" if not is_admin else "admin_handler",
             location=f"{final_hostname}{p}",
@@ -353,7 +390,7 @@ def scan_live_website(target_url: str) -> Dict[str, Any]:
 
         matrix_rows.append(
             AccessMatrixRow(
-                method="GET",
+                method=methods[0] if methods else "GET",
                 path=p,
                 expected="admin" if is_admin else ("authenticated" if is_auth else "public"),
                 actual="authenticated" if is_prot else "none",

@@ -16,15 +16,21 @@ const isValidTarget = (value: string): boolean => {
     return true;
   }
 
+  const hasProtocol = /^[a-z][a-z\d+.-]*:\/\//i.test(value);
+  const candidate = hasProtocol ? value : `https://${value}`;
+
   try {
-    const parsed = new URL(value);
-    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && Boolean(parsed.hostname);
+    const parsed = new URL(candidate);
+    const isHttpUrl = parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    const isBareHost = !hasProtocol && !value.includes('/');
+    const hasRecognizableHost = parsed.hostname === 'localhost' || parsed.hostname.includes('.');
+    return isHttpUrl && Boolean(parsed.hostname) && (!isBareHost || hasRecognizableHost);
   } catch {
     return false;
   }
 };
 
-export const ScanInput: React.FC<ScanInputProps> = ({ onScan, isLoading, activeTarget }) => {
+export const ScanInput: React.FC<ScanInputProps> = ({ onScan, isLoading, activeTarget = '' }) => {
   const [inputVal, setInputVal] = useState(activeTarget);
   const [validationMessage, setValidationMessage] = useState('');
 

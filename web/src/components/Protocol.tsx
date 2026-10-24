@@ -36,11 +36,11 @@ export const Protocol: React.FC = () => {
             return (
               <div key={s.num}>
                 <div className="p-7 rounded-3xl bg-surface border-2 border-divider hover:border-primary/30 transition-colors shadow-sm">
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex flex-wrap items-center gap-3 mb-3">
                     <span className="font-mono text-2xl font-extrabold text-primary/60">{s.num}</span>
                     <div className="h-5 w-px bg-divider" />
                     <span className={`px-2.5 py-0.5 rounded-full text-xs font-mono font-bold border ${s.accent}`}>{s.pill}</span>
-                    <div className="ml-auto p-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary">
+                    <div className="ml-auto p-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary" aria-hidden="true">
                       <Icon className="w-4 h-4" />
                     </div>
                   </div>

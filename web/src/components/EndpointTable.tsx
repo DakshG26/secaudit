@@ -24,21 +24,27 @@ export const EndpointTable: React.FC<EndpointTableProps> = ({ endpoints }) => (
       </p>
     </div>
 
-    <div className="overflow-x-auto rounded-2xl border-2 border-divider bg-surface shadow-sm">
-      <table className="w-full text-sm">
+    <div className="max-w-full overflow-x-auto rounded-2xl border-2 border-divider bg-surface shadow-sm">
+      <table className="w-full min-w-[760px] text-sm">
         <thead className="bg-background border-b border-divider text-xs font-mono uppercase tracking-wider text-muted">
           <tr>
-            <th className="py-3 px-4 text-left">Method</th>
-            <th className="py-3 px-4 text-left">Route</th>
-            <th className="py-3 px-4 text-left">Handler Function</th>
-            <th className="py-3 px-4 text-left">User Inputs</th>
-            <th className="py-3 px-4 text-left">Auth</th>
-            <th className="py-3 px-4 text-right">Protected?</th>
+            <th scope="col" className="py-3 px-4 text-left">Method</th>
+            <th scope="col" className="py-3 px-4 text-left">Route</th>
+            <th scope="col" className="py-3 px-4 text-left">Handler Function</th>
+            <th scope="col" className="py-3 px-4 text-left">User Inputs</th>
+            <th scope="col" className="py-3 px-4 text-left">Auth</th>
+            <th scope="col" className="py-3 px-4 text-right">Protected?</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-divider">
-          {endpoints.map((ep, i) => (
-            <tr key={i} className={`hover:bg-background/60 transition-colors ${!ep.is_protected ? 'bg-red-50/30' : ''}`}>
+          {endpoints.length === 0 ? (
+            <tr>
+              <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted">
+                No routes were discovered for this target.
+              </td>
+            </tr>
+          ) : endpoints.map(ep => (
+            <tr key={`${ep.method.join('-')}:${ep.path}:${ep.location}`} className={`hover:bg-background/60 transition-colors ${!ep.is_protected ? 'bg-red-50/30' : ''}`}>
               <td className="py-2.5 px-4">
                 <div className="flex gap-1 flex-wrap">
                   {ep.method.map(m => (
@@ -48,8 +54,8 @@ export const EndpointTable: React.FC<EndpointTableProps> = ({ endpoints }) => (
                   ))}
                 </div>
               </td>
-              <td className="py-2.5 px-4 font-mono font-semibold text-ink text-xs">{ep.path}</td>
-              <td className="py-2.5 px-4 font-mono text-xs text-primary">{ep.handler}()</td>
+              <td className="py-2.5 px-4 font-mono font-semibold text-ink text-xs whitespace-nowrap">{ep.path}</td>
+              <td className="py-2.5 px-4 font-mono text-xs text-primary whitespace-nowrap">{ep.handler}()</td>
               <td className="py-2.5 px-4 font-mono text-xs">
                 {ep.request_inputs.length > 0
                   ? <span className="text-amber-700">{ep.request_inputs.join(', ')}</span>

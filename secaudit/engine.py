@@ -19,12 +19,13 @@ from __future__ import annotations
 import math
 import os
 import re
+import tomllib
 from pathlib import Path
-from typing import List, Optional
+from typing import Iterable, List, Optional
 
 import yaml
 
-from secaudit.models import Endpoint, Finding, ScanResult
+from secaudit.models import Endpoint, Finding
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -43,8 +44,73 @@ _FINDING_COUNTER: dict[str, int] = {}
 
 def _next_id(rule_id: str) -> str:
     """Generate sequential finding IDs like A04-SECRET-001-1, -2, etc."""
+    rule_id = str(rule_id).strip()
     _FINDING_COUNTER[rule_id] = _FINDING_COUNTER.get(rule_id, 0) + 1
     return f"{rule_id}-{_FINDING_COUNTER[rule_id]}"
+
+
+def _normalise_ignore_ids(ignore_ids: Optional[Iterable[object]]) -> set[str]:
+    """Return a safe, case-insensitive set of ignore identifiers."""
+    if not ignore_ids:
+        return set()
+    return {
+        str(rule_id).strip().upper()
+        for rule_id in ignore_ids
+        if rule_id is not None and str(rule_id).strip()
+    }
+
+
+def _mark_ignored(
+    finding: Finding,
+    rule_id: str,
+    ignore_ids: set[str],
+    inline_ignored: bool = False,
+) -> None:
+    """Apply rule-level or line-level ignore state without dropping findings."""
+    normalised_rule_id = str(rule_id).strip().upper()
+    if inline_ignored:
+        finding.ignored = True
+        finding.ignore_reason = f"Inline ignore for Rule {rule_id}"
+    elif normalised_rule_id in ignore_ids:
+        finding.ignored = True
+        finding.ignore_reason = f"Rule {rule_id} in .secauditignore"
+
+
+def _iter_matching_files(
+    target_path: str,
+    extensions: set[str],
+    excluded_dirs: set[str],
+) -> Iterable[Path]:
+    """Yield regular files under a directory, or the requested file itself.
+
+    ``os.walk`` silently yields nothing for a file path, which made scans of a
+    single source file appear successful while producing no findings.  This
+    helper also avoids following symlinked directories/files outside the scan
+    root and keeps extension matching consistent for ``py`` and ``.py``.
+    """
+    target = Path(target_path)
+    if target.is_file():
+        if not target.is_symlink() and target.suffix.lower().lstrip(".") in extensions:
+            yield target
+        return
+    if not target.is_dir():
+        return
+
+    for root, dirs, files in os.walk(target, topdown=True, followlinks=False):
+        dirs[:] = [
+            name
+            for name in dirs
+            if not name.startswith(".")
+            and name not in excluded_dirs
+            and not (Path(root) / name).is_symlink()
+        ]
+        for filename in files:
+            filepath = Path(root) / filename
+            if filepath.is_symlink() or not filepath.is_file():
+                continue
+            extension = filepath.suffix.lower().lstrip(".")
+            if extension in extensions or (not extension and filename.lower() in extensions):
+                yield filepath
 
 
 # ---------------------------------------------------------------------------
@@ -58,18 +124,26 @@ def load_rules(rules_dir: Optional[Path] = None) -> List[dict]:
     Each file is a dict; the filename is used as a fallback id.
     Returns a list of rule dicts, sorted by OWASP category then id.
     """
-    directory = rules_dir or RULES_DIR
+    directory = Path(rules_dir or RULES_DIR)
+    if not directory.is_dir():
+        return []
     rules = []
     for filepath in sorted(directory.glob("*.yml")):
         try:
-            with open(filepath, encoding="utf-8") as fh:
+            with open(filepath, encoding="utf-8", errors="replace") as fh:
                 rule = yaml.safe_load(fh)
-            if isinstance(rule, dict) and "id" in rule:
-                rule["_filepath"] = str(filepath)
-                rules.append(rule)
-        except (yaml.YAMLError, OSError):
-            pass  # Silently skip malformed rule files
-    return rules
+            if not isinstance(rule, dict):
+                continue
+            rule_id = rule.get("id")
+            if not isinstance(rule_id, str) or not rule_id.strip():
+                continue
+            rule = dict(rule)
+            rule["id"] = rule_id.strip()
+            rule["_filepath"] = str(filepath)
+            rules.append(rule)
+        except (yaml.YAMLError, OSError, UnicodeError):
+            continue  # Ignore malformed rule files without aborting a scan.
+    return sorted(rules, key=lambda rule: (str(rule.get("owasp", "")), str(rule["id"])))
 
 
 # ---------------------------------------------------------------------------
@@ -113,11 +187,16 @@ def _load_ignore_file(target_path: str) -> set[str]:
     Each non-comment line is a glob pattern or RULE-ID to ignore.
     Returns a set of rule IDs listed explicitly.
     """
-    ignore_file = Path(target_path) / ".secauditignore"
+    target = Path(target_path)
+    ignore_file = (target.parent if target.is_file() else target) / ".secauditignore"
     rule_ids: set[str] = set()
-    if not ignore_file.exists():
+    if not ignore_file.is_file():
         return rule_ids
-    for line in ignore_file.read_text().splitlines():
+    try:
+        lines = ignore_file.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return rule_ids
+    for line in lines:
         line = line.strip()
         if line and not line.startswith("#"):
             rule_ids.add(line.upper())
@@ -130,8 +209,10 @@ def _check_inline_ignore(line: str, rule_id: str) -> bool:
 
     Format: # secaudit: ignore A05-SQL-001
     """
+    if not isinstance(rule_id, str) or not rule_id.strip():
+        return False
     pattern = re.compile(
-        r"#\s*secaudit:\s*ignore\s+" + re.escape(rule_id),
+        r"#\s*secaudit:\s*ignore\s+" + re.escape(rule_id.strip()) + r"(?![A-Za-z0-9_-])",
         re.IGNORECASE,
     )
     return bool(pattern.search(line))
@@ -148,116 +229,122 @@ def _run_regex_rule(rule: dict, target_path: str, ignore_ids: set[str]) -> List[
     Handles multi-line scanning, file extension filtering, and entropy checks
     for the A04-SECRET rule.
     """
-    findings = []
+    findings: List[Finding] = []
+    rule_id = rule.get("id")
+    if not isinstance(rule_id, str) or not rule_id.strip():
+        return findings
+    rule_id = rule_id.strip()
+
     pattern_str = rule.get("pattern", "")
-    if not pattern_str:
+    if not isinstance(pattern_str, str) or not pattern_str:
         return findings
 
-    extensions = set(rule.get("file_extensions", ["py"]))
-    flags_str = rule.get("flags", "")
-    re_flags = re.IGNORECASE if "IGNORECASE" in flags_str else 0
+    raw_extensions = rule.get("file_extensions", ["py"])
+    if isinstance(raw_extensions, str):
+        raw_extensions = [raw_extensions]
+    if not isinstance(raw_extensions, (list, tuple, set)):
+        return findings
+    extensions = {
+        str(extension).strip().lower().lstrip(".")
+        for extension in raw_extensions
+        if extension is not None and str(extension).strip()
+    }
+    if not extensions:
+        return findings
+
+    flags_value = rule.get("flags", "")
+    if isinstance(flags_value, str):
+        flag_names = {
+            part.strip().upper()
+            for part in re.split(r"[|,\s]+", flags_value)
+            if part.strip()
+        }
+    elif isinstance(flags_value, (list, tuple, set)):
+        flag_names = {str(part).strip().upper() for part in flags_value if str(part).strip()}
+    else:
+        flag_names = set()
+    re_flags = re.IGNORECASE if "IGNORECASE" in flag_names else 0
 
     try:
         pattern = re.compile(pattern_str, re_flags)
     except re.error:
         return findings
 
-    entropy_threshold = rule.get("entropy_threshold", 0)
-    redact = rule.get("redact_in_output", False)
+    try:
+        entropy_threshold = float(rule.get("entropy_threshold", 0) or 0)
+    except (TypeError, ValueError):
+        entropy_threshold = 0.0
+    redact = bool(rule.get("redact_in_output", False))
 
     is_demo = os.path.basename(target_path.rstrip("/")) in ("demo_app", "demo_app_fixed")
     excluded = {"venv", "env", "__pycache__", "node_modules", "reference", "dist", "build"}
     if not is_demo:
         excluded.update({"tests", "test", "spec", "demo_app", "rules", "fixtures", "mock", "mocks"})
+    ignored_files = {"mockdata.ts", "mockdata.js", "before.json", "package-lock.json", "yarn.lock"}
+    is_comment_rule = rule_id.upper() in {"A01-TODO-001", "A01-COMMENTED-AUTH-001"}
 
-    ignored_files = {"mockData.ts", "mockData.js", "before.json", "package-lock.json", "yarn.lock"}
+    for filepath in _iter_matching_files(target_path, extensions, excluded):
+        if filepath.name.lower() in ignored_files:
+            continue
+        try:
+            content = filepath.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
 
-    for root, dirs, files in os.walk(target_path):
-        dirs[:] = [d for d in dirs if not d.startswith(".") and d not in excluded]
-        for filename in files:
-            if filename in ignored_files:
-                continue
-            ext = filename.rsplit(".", 1)[-1].lower()
-            if ext not in extensions and filename.lstrip(".") not in extensions:
-                continue
-            filepath = os.path.join(root, filename)
-            try:
-                content = Path(filepath).read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                continue
+        in_docstring = False
+        docstring_delim = ""
+        for lineno, line in enumerate(content.splitlines(), 1):
+            inline_ignored = _check_inline_ignore(line, rule_id)
+            stripped = line.strip()
+            was_in_docstring = in_docstring
 
-            in_docstring = False
-            docstring_delim = ""
-            for lineno, line in enumerate(content.splitlines(), 1):
-                if _check_inline_ignore(line, rule["id"]):
+            # Track multiline Python docstrings.  A closing delimiter still
+            # belongs to the docstring and must not be scanned as code.
+            if filepath.suffix.lower() == ".py":
+                if not in_docstring:
+                    for delim in ('"""', "'''"):
+                        if stripped.startswith(delim) and stripped.count(delim) == 1:
+                            in_docstring = True
+                            docstring_delim = delim
+                            break
+                elif docstring_delim in stripped:
+                    in_docstring = False
+
+            if not is_comment_rule:
+                if stripped.startswith(("#", "//", "/*", "*")) or was_in_docstring or in_docstring:
+                    continue
+                if stripped.startswith(('"""', "'''", '"', "'", "`")):
                     continue
 
-                stripped = line.strip()
-                # Track multiline docstrings in python files
-                if filepath.endswith(".py"):
-                    if not in_docstring:
-                        for delim in ('"""', "'''"):
-                            if stripped.startswith(delim):
-                                if stripped.count(delim) == 1:
-                                    in_docstring = True
-                                    docstring_delim = delim
-                                break
-                    else:
-                        if docstring_delim in stripped:
-                            in_docstring = False
-                        if rule["id"] not in ("A01-TODO-001", "A01-COMMENTED-AUTH-001"):
-                            continue
+            match = pattern.search(line)
+            if not match:
+                continue
 
-                # Skip comment lines, string literals and docstrings for non-comment rules
-                if rule["id"] not in ("A01-TODO-001", "A01-COMMENTED-AUTH-001"):
-                    if stripped.startswith(("#", "//", "/*", "*")):
-                        continue
-                    if in_docstring:
-                        continue
-                    if stripped.startswith(('"""', "'''", '"', "'", "`")):
-                        continue
-                    if any(k in stripped for k in ("narrative", "description", "remediation", "evidence", "impact", "title")) and ("=" in stripped or ":" in stripped):
-                        continue
-                    if (stripped.startswith('"""') and stripped.endswith('"""') and len(stripped) >= 6) or \
-                       (stripped.startswith("'''") and stripped.endswith("'''") and len(stripped) >= 6):
-                        continue
-
-                match = pattern.search(line)
-                if not match:
+            evidence = stripped[:120]
+            if entropy_threshold:
+                captured = match.group(1) if match.lastindex else match.group(0)
+                captured = captured or match.group(0)
+                if _shannon_entropy(captured) < entropy_threshold:
                     continue
+                if redact:
+                    evidence = evidence.replace(captured, _redact(captured))
 
-                evidence = line.strip()[:120]
-
-                # Entropy check for secrets
-                if entropy_threshold:
-                    # Extract the captured value (first group or whole match)
-                    captured = match.group(1) if match.lastindex else match.group(0)
-                    if _shannon_entropy(captured) < entropy_threshold:
-                        continue  # Low entropy → not a real secret
-                    if redact:
-                        evidence = evidence.replace(captured, _redact(captured))
-
-                location = f"{filepath}:{lineno}"
-                finding_id = _next_id(rule["id"])
-
-                f = Finding(
-                    id=finding_id,
-                    rule_id=rule["id"],
-                    title=rule.get("title", rule["id"]),
-                    owasp=rule.get("owasp", ""),
-                    cwe=rule.get("cwe", ""),
-                    severity=rule.get("severity", "medium"),
-                    confidence=rule.get("confidence", "possible"),
-                    location=location,
-                    evidence=evidence,
-                    impact=rule.get("impact", ""),
-                    remediation=rule.get("fix", ""),
-                    fixed_code=rule.get("fixed_code", ""),
-                )
-                if rule["id"].upper() in ignore_ids:
-                    f.ignored = True
-                    f.ignore_reason = f"Rule {rule['id']} in .secauditignore"
-                findings.append(f)
+            f = Finding(
+                id=_next_id(rule_id),
+                rule_id=rule_id,
+                title=str(rule.get("title", rule_id)),
+                owasp=str(rule.get("owasp", "")),
+                cwe=str(rule.get("cwe", "")),
+                severity=str(rule.get("severity", "medium")),
+                confidence=str(rule.get("confidence", "possible")),
+                location=f"{filepath}:{lineno}",
+                evidence=evidence,
+                impact=str(rule.get("impact", "")),
+                remediation=str(rule.get("fix", "")),
+                fixed_code=str(rule.get("fixed_code", "")),
+            )
+            _mark_ignored(f, rule_id, ignore_ids, inline_ignored)
+            findings.append(f)
 
     return findings
 

@@ -21,7 +21,7 @@ export const AttackFlows: React.FC<AttackFlowsProps> = ({ chains, findings }) =>
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="font-display font-bold text-xl text-ink flex items-center gap-2">
           <Network className="w-5 h-5 text-primary" />
           Combined Attack Paths
@@ -37,7 +37,7 @@ export const AttackFlows: React.FC<AttackFlowsProps> = ({ chains, findings }) =>
 
       <div className="space-y-4">
         {chains.map(chain => (
-          <div key={chain.id} className="p-5 rounded-2xl bg-surface border-2 border-red-200 shadow-sm">
+          <article key={chain.id} className="p-4 sm:p-5 rounded-2xl bg-surface border-2 border-red-200 shadow-sm">
             {/* Chain header */}
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
@@ -55,15 +55,15 @@ export const AttackFlows: React.FC<AttackFlowsProps> = ({ chains, findings }) =>
             {/* Step-by-step path */}
             <div className="p-3 rounded-xl bg-red-50 border border-red-100 mb-3">
               <p className="text-xs font-mono uppercase tracking-wider text-red-700 mb-2">How the attack unfolds</p>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-wrap">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-wrap">
                 {chain.finding_ids.map((fid, idx) => {
                   const f = getFinding(fid);
                   return (
                     <React.Fragment key={fid}>
-                      <div className="flex-1 min-w-[140px] p-2.5 rounded-lg bg-surface border border-red-200">
+                      <div className="flex-1 min-w-0 sm:min-w-[140px] p-2.5 rounded-lg bg-surface border border-red-200">
                         <p className="text-[10px] font-mono text-red-600 mb-0.5">Step {idx + 1}</p>
-                        <p className="text-xs font-semibold text-ink line-clamp-2">{f?.title ?? fid}</p>
-                        <p className="text-[10px] font-mono text-muted truncate mt-0.5">{f?.location ?? ''}</p>
+                        <p className="text-xs font-semibold text-ink line-clamp-2 break-words">{f?.title ?? fid}</p>
+                        <p className="text-[10px] font-mono text-muted truncate mt-0.5" title={f?.location}>{f?.location ?? ''}</p>
                       </div>
                       {idx < chain.finding_ids.length - 1 && (
                         <ArrowRight className="w-4 h-4 text-red-400 shrink-0 rotate-90 sm:rotate-0" />
@@ -72,16 +72,16 @@ export const AttackFlows: React.FC<AttackFlowsProps> = ({ chains, findings }) =>
                   );
                 })}
                 <ArrowRight className="w-4 h-4 text-red-600 shrink-0 rotate-90 sm:rotate-0" />
-                <div className="flex-1 min-w-[140px] p-2.5 rounded-lg bg-red-600 text-white">
+                <div className="flex-1 min-w-0 sm:min-w-[140px] p-2.5 rounded-lg bg-red-600 text-white">
                   <p className="text-[10px] font-mono text-red-200 mb-0.5">Result</p>
-                  <p className="text-xs font-semibold line-clamp-2">{chain.description}</p>
+                  <p className="text-xs font-semibold line-clamp-2 break-words">{chain.description}</p>
                 </div>
               </div>
             </div>
 
             {/* Narrative */}
             <p className="text-xs text-muted font-mono leading-relaxed border-l-2 border-red-200 pl-3">{chain.narrative}</p>
-          </div>
+          </article>
         ))}
       </div>
     </div>
