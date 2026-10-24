@@ -59,6 +59,12 @@ def scan_endpoint():
     if not target_input:
         return jsonify({"error": "Target URL or repository path is required"}), 400
 
+    # Normalize GitHub URL variations
+    if target_input.startswith("github.com/"):
+        target_input = "https://" + target_input
+    elif target_input.startswith("www.github.com/"):
+        target_input = "https://" + target_input
+
     temp_dir = None
     target_path = None
     is_github = False
@@ -79,20 +85,55 @@ def scan_endpoint():
                 "git", "clone", "--depth=1", "--single-branch",
                 target_input, temp_dir
             ]
-            res = subprocess.run(clone_cmd, capture_output=True, text=True, timeout=30)
+            res = subprocess.run(clone_cmd, capture_output=True, text=True, timeout=60)
             if res.returncode != 0:
+                err_text = res.stderr.strip()
+                if "Repository not found" in err_text or "not found" in err_text:
+                    return jsonify({"error": f"Repository '{target_input}' not found. Please ensure it is a public GitHub repository."}), 404
                 return jsonify({
-                    "error": f"Failed to clone GitHub repo: {res.stderr[:200]}"
+                    "error": f"Could not clone repository: {err_text[:200]}"
                 }), 400
             target_path = temp_dir
             policy_file = os.path.join(temp_dir, "policy.yml")
         elif os.path.isdir(target_input):
             target_path = target_input
             policy_file = os.path.join(target_input, "policy.yml")
-        else:
-            # Default to demo_app if not a direct git repo
+        elif target_input.startswith("http://") or target_input.startswith("https://"):
+            from urllib.parse import urlparse
+            parsed = urlparse(target_input)
+            host = parsed.hostname or ""
+            if host not in ("localhost", "127.0.0.1", "::1"):
+                return jsonify({
+                    "error": f"Live scanning of external hosts ('{host}') is restricted for safety. SecAudit only audits localhost services (http://localhost:5000) or public GitHub repositories (https://github.com/org/repo)."
+                }), 400
+            # For localhost URLs, scan demo_app with live probes confirmed
+            from secaudit.probes import run_live_checks
+            live_findings = run_live_checks(target_input)
+            active = live_findings
             target_path = str(DEMO_APP)
-            policy_file = str(DEMO_APP / "policy.yml")
+            endpoints = extract_endpoints(target_path)
+            chains = []
+            access_matrix = []
+            counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+            for f in active:
+                counts[f.severity] = counts.get(f.severity, 0) + 1
+            deduction = counts.get("critical", 0) * 15 + counts.get("high", 0) * 10 + counts.get("medium", 0) * 5
+            score = max(0, min(100, 100 - deduction))
+            return jsonify({
+                "target": target_input,
+                "scan_time": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+                "score": score,
+                "status": "clean" if score >= 90 else ("warning" if score >= 60 else "compromised"),
+                "stats": {**counts, "total": len(active)},
+                "findings": [f.to_dict() for f in active],
+                "endpoints": [e.to_dict() for e in endpoints],
+                "access_matrix": [],
+                "chains": []
+            }), 200
+        else:
+            return jsonify({
+                "error": f"Invalid target '{target_input}'. Please paste a public GitHub URL (e.g. https://github.com/bottlepy/bottle) or select a demo target."
+            }), 400
 
         # Step 1: Inventory Extraction
         endpoints = extract_endpoints(target_path)
@@ -127,6 +168,25 @@ def scan_endpoint():
         score = max(0, min(100, 100 - deduction))
         status = "clean" if score >= 90 else ("warning" if score >= 60 else "compromised")
 
+        # Helper to simplify file locations for user
+        prefix = str(target_path).rstrip("/") + "/"
+        def clean_loc(loc):
+            if loc and loc.startswith(prefix):
+                return loc[len(prefix):]
+            return loc or ""
+
+        clean_findings = []
+        for f in active:
+            fd = f.to_dict()
+            fd["location"] = clean_loc(fd.get("location", ""))
+            clean_findings.append(fd)
+
+        clean_endpoints = []
+        for e in endpoints:
+            ed = e.to_dict()
+            ed["location"] = clean_loc(ed.get("location", ""))
+            clean_endpoints.append(ed)
+
         # Serialise
         result = {
             "target": target_input,
@@ -137,15 +197,15 @@ def scan_endpoint():
                 **counts,
                 "total": len(active)
             },
-            "findings": [f.to_dict() for f in active],
-            "endpoints": [e.to_dict() for e in endpoints],
+            "findings": clean_findings,
+            "endpoints": clean_endpoints,
             "access_matrix": [r.to_dict() for r in access_matrix],
             "chains": [c.to_dict() for c in chains]
         }
         return jsonify(result), 200
 
     except subprocess.TimeoutExpired:
-        return jsonify({"error": "Git clone operation timed out after 30 seconds"}), 408
+        return jsonify({"error": "Git clone operation timed out after 60 seconds"}), 408
     except Exception as exc:
         return jsonify({"error": f"Scan failed: {str(exc)}"}), 500
     finally:

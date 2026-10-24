@@ -1,91 +1,78 @@
 import React from 'react';
-import { ShieldCheck, AlertCircle, FileCode } from 'lucide-react';
 import { Endpoint } from '../types/security';
+import { FileCode, ShieldCheck, AlertCircle } from 'lucide-react';
 
-interface EndpointTableProps {
-  endpoints: Endpoint[];
-}
+interface EndpointTableProps { endpoints: Endpoint[]; }
 
-export const EndpointTable: React.FC<EndpointTableProps> = ({ endpoints }) => {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <FileCode className="w-5 h-5 text-cyan-400" />
-            Endpoint Inventory ({endpoints.length})
-          </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            AST-extracted Flask/FastAPI routes with handlers, parameter bindings, and auth wrappers.
-          </p>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto rounded-xl border border-slate-800 bg-[#0d1629]">
-        <table className="w-full text-left text-xs font-mono">
-          <thead className="bg-[#070c18] border-b border-slate-800 text-slate-400 uppercase tracking-wider text-[11px]">
-            <tr>
-              <th className="py-3 px-4">Method</th>
-              <th className="py-3 px-4">Route Path</th>
-              <th className="py-3 px-4">Handler</th>
-              <th className="py-3 px-4">Inputs & Params</th>
-              <th className="py-3 px-4">Auth Decorators</th>
-              <th className="py-3 px-4 text-right">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800/60">
-            {endpoints.map((ep, idx) => (
-              <tr key={idx} className="hover:bg-slate-800/30 transition">
-                <td className="py-2.5 px-4">
-                  <div className="flex gap-1 flex-wrap">
-                    {ep.method.map((m) => (
-                      <span
-                        key={m}
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                          m === 'GET'
-                            ? 'bg-blue-950 text-blue-300 border border-blue-800'
-                            : m === 'POST'
-                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                            : 'bg-purple-950 text-purple-300 border border-purple-800'
-                        }`}
-                      >
-                        {m}
-                      </span>
-                    ))}
-                  </div>
-                </td>
-                <td className="py-2.5 px-4 font-semibold text-white">{ep.path}</td>
-                <td className="py-2.5 px-4 text-cyan-300">{ep.handler}()</td>
-                <td className="py-2.5 px-4 text-slate-400">
-                  {ep.request_inputs.length > 0 ? (
-                    <span className="text-amber-300">{ep.request_inputs.join(', ')}</span>
-                  ) : (
-                    <span className="text-slate-600">—</span>
-                  )}
-                </td>
-                <td className="py-2.5 px-4 text-slate-300">
-                  {ep.auth_decorators.length > 0 ? (
-                    <span className="text-emerald-400">{ep.auth_decorators.join(', ')}</span>
-                  ) : (
-                    <span className="text-slate-600">None</span>
-                  )}
-                </td>
-                <td className="py-2.5 px-4 text-right">
-                  {ep.is_protected ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950/60 text-emerald-300 border border-emerald-500/30">
-                      <ShieldCheck className="w-3 h-3 text-emerald-400" /> Protected
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950/60 text-amber-300 border border-amber-500/30">
-                      <AlertCircle className="w-3 h-3 text-amber-400" /> Exposed
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+const METHOD_COLOR: Record<string, string> = {
+  GET:    'bg-blue-100 text-blue-700 border-blue-200',
+  POST:   'bg-emerald-100 text-emerald-700 border-emerald-200',
+  PUT:    'bg-purple-100 text-purple-700 border-purple-200',
+  PATCH:  'bg-amber-100 text-amber-700 border-amber-200',
+  DELETE: 'bg-red-100 text-red-700 border-red-200',
 };
+
+export const EndpointTable: React.FC<EndpointTableProps> = ({ endpoints }) => (
+  <div className="space-y-4">
+    <div>
+      <h2 className="font-display font-bold text-xl text-ink flex items-center gap-2">
+        <FileCode className="w-5 h-5 text-primary" /> Route Inventory
+        <span className="text-sm font-body font-normal text-muted">({endpoints.length} routes found)</span>
+      </h2>
+      <p className="text-sm text-muted mt-0.5">
+        All routes discovered by reading the source code — no server needed.
+      </p>
+    </div>
+
+    <div className="overflow-x-auto rounded-2xl border-2 border-divider bg-surface shadow-sm">
+      <table className="w-full text-sm">
+        <thead className="bg-background border-b border-divider text-xs font-mono uppercase tracking-wider text-muted">
+          <tr>
+            <th className="py-3 px-4 text-left">Method</th>
+            <th className="py-3 px-4 text-left">Route</th>
+            <th className="py-3 px-4 text-left">Handler Function</th>
+            <th className="py-3 px-4 text-left">User Inputs</th>
+            <th className="py-3 px-4 text-left">Auth</th>
+            <th className="py-3 px-4 text-right">Protected?</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-divider">
+          {endpoints.map((ep, i) => (
+            <tr key={i} className={`hover:bg-background/60 transition-colors ${!ep.is_protected ? 'bg-red-50/30' : ''}`}>
+              <td className="py-2.5 px-4">
+                <div className="flex gap-1 flex-wrap">
+                  {ep.method.map(m => (
+                    <span key={m} className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border ${METHOD_COLOR[m] ?? 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              </td>
+              <td className="py-2.5 px-4 font-mono font-semibold text-ink text-xs">{ep.path}</td>
+              <td className="py-2.5 px-4 font-mono text-xs text-primary">{ep.handler}()</td>
+              <td className="py-2.5 px-4 font-mono text-xs">
+                {ep.request_inputs.length > 0
+                  ? <span className="text-amber-700">{ep.request_inputs.join(', ')}</span>
+                  : <span className="text-divider">—</span>}
+              </td>
+              <td className="py-2.5 px-4 font-mono text-xs">
+                {ep.auth_decorators.length > 0
+                  ? <span className="text-emerald-700">{ep.auth_decorators.join(', ')}</span>
+                  : <span className="text-muted italic">None</span>}
+              </td>
+              <td className="py-2.5 px-4 text-right">
+                {ep.is_protected
+                  ? <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
+                      <ShieldCheck className="w-3 h-3" /> Protected
+                    </span>
+                  : <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
+                      <AlertCircle className="w-3 h-3" /> Open
+                    </span>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);

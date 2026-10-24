@@ -1,61 +1,53 @@
 import React from 'react';
 import { Shield, Lock, Terminal } from 'lucide-react';
 
-export const Footer: React.FC = () => {
-  return (
-    <footer className="mt-20 border-t border-slate-900 bg-[#050811] text-xs font-mono text-slate-500 py-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-          {/* Engine Spec */}
-          <div>
-            <div className="flex items-center gap-2 text-slate-300 font-bold mb-2">
-              <Shield className="w-4 h-4 text-cyan-400" />
-              <span>SecAudit Core Engine</span>
-            </div>
-            <p className="text-[11px] leading-relaxed text-slate-400">
-              Deterministic AST parser for Flask/FastAPI architectures. Safe static auditing with no code execution.
-              All network probes strictly isolated to <code>127.0.0.1</code>, <code>localhost</code>, and <code>::1</code>.
-            </p>
+export const Footer: React.FC = () => (
+  <footer className="border-t border-divider bg-surface py-12 text-sm">
+    <div className="max-w-7xl mx-auto px-6 sm:px-10">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-white">
+              <Shield className="w-4 h-4" />
+            </span>
+            <span className="font-display font-bold text-ink">SecAudit</span>
           </div>
-
-          {/* OWASP Coverage */}
-          <div>
-            <div className="flex items-center gap-2 text-slate-300 font-bold mb-2">
-              <Lock className="w-4 h-4 text-emerald-400" />
-              <span>OWASP Top 10:2025 Coverage</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5 text-[10px]">
-              {['A01: Broken Access Control', 'A02: Security Misconfig', 'A03: Supply Chain', 'A04: Cryptographic Failures', 'A05: Injection', 'A09: Logging & Alerting', 'A10: Exceptional Conditions'].map((item) => (
-                <span key={item} className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
-                  {item}
-                </span>
-              ))}
-            </div>
+          <p className="text-muted text-xs leading-relaxed">
+            Deterministic AST parser for Flask/FastAPI apps. Safe, non-destructive analysis.
+            Network probes limited to <code className="font-mono bg-primary/10 px-1 rounded">127.0.0.1</code> and <code className="font-mono bg-primary/10 px-1 rounded">localhost</code>.
+          </p>
+        </div>
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Lock className="w-4 h-4 text-emerald-600" />
+            <span className="font-display font-semibold text-ink text-sm">OWASP Top 10:2025</span>
           </div>
-
-          {/* Academic & Reference Note */}
-          <div>
-            <div className="flex items-center gap-2 text-slate-300 font-bold mb-2">
-              <Terminal className="w-4 h-4 text-purple-400" />
-              <span>Independent Implementation</span>
-            </div>
-            <p className="text-[11px] leading-relaxed text-slate-400">
-              Clean-room architecture. Reference studies on Vibesec (AyushkhatiDev, MIT) and Vibeward (JSiapoDEV, MIT) cited for taxonomy research. All SecAudit engine code is novel.
-            </p>
+          <div className="flex flex-wrap gap-1.5">
+            {['A01 Broken Access Control','A02 Misconfiguration','A03 Supply Chain','A04 Crypto Failures','A05 Injection','A09 Logging','A10 Error Handling'].map(t => (
+              <span key={t} className="px-2 py-0.5 rounded-md text-xs bg-background border border-divider text-muted">{t}</span>
+            ))}
           </div>
         </div>
-
-        <div className="pt-6 border-t border-slate-900/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]">
-          <span>© 2026 SecAudit Research. Authorized Security Auditor.</span>
-          <div className="flex items-center gap-4">
-            <span className="text-cyan-400">AST Route Extraction</span>
-            <span>•</span>
-            <span className="text-emerald-400">Policy Matrix</span>
-            <span>•</span>
-            <span className="text-red-400">Attack Chains</span>
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Terminal className="w-4 h-4 text-purple-600" />
+            <span className="font-display font-semibold text-ink text-sm">Credits</span>
           </div>
+          <p className="text-muted text-xs leading-relaxed">
+            Independent clean-room implementation. Taxonomy research referenced Vibesec (AyushkhatiDev, MIT) and Vibeward (JSiapoDEV, MIT). All engine code is original.
+          </p>
         </div>
       </div>
-    </footer>
-  );
-};
+      <div className="pt-6 border-t border-divider flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted">
+        <span>© 2026 SecAudit — Authorized Security Auditing Only</span>
+        <div className="flex items-center gap-4 font-mono">
+          <span className="text-primary">AST Analysis</span>
+          <span>•</span>
+          <span className="text-emerald-600">Zero-Trust Matrix</span>
+          <span>•</span>
+          <span className="text-red-600">Attack Chains</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+);

@@ -1,109 +1,52 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ShieldCheck, Cpu, Lock, CheckCircle2 } from 'lucide-react';
 
-interface CountUpProps {
-  end: number;
-  suffix?: string;
-  duration?: number;
-}
-
-const CountUp: React.FC<CountUpProps> = ({ end, suffix = '', duration = 1800 }) => {
+const CountUp: React.FC<{ end: number; suffix?: string }> = ({ end, suffix = '' }) => {
   const [val, setVal] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
-  const started = useRef(false);
-
+  const done = useRef(false);
   useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && !started.current) {
-        started.current = true;
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting && !done.current) {
+        done.current = true;
         const start = performance.now();
-        const frame = (now: number) => {
-          const progress = Math.min((now - start) / duration, 1);
-          const ease = 1 - Math.pow(1 - progress, 3); // cubic ease out
-          setVal(Math.floor(ease * end));
-          if (progress < 1) requestAnimationFrame(frame);
+        const dur = 1600;
+        const tick = (now: number) => {
+          const p = Math.min((now - start) / dur, 1);
+          setVal(Math.floor((1 - Math.pow(1 - p, 3)) * end));
+          if (p < 1) requestAnimationFrame(tick);
         };
-        requestAnimationFrame(frame);
+        requestAnimationFrame(tick);
       }
     }, { threshold: 0.3 });
-
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [end, duration]);
-
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, [end]);
   return <span ref={ref}>{val}{suffix}</span>;
 };
 
-export const Pillars: React.FC = () => {
-  return (
-    <section className="py-16 border-y border-slate-900 bg-[#050811] relative overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          {/* Pillar 1 */}
-          <div className="p-4">
-            <div className="flex items-center justify-center mb-3">
-              <span className="p-2.5 rounded-2xl bg-cyan-950/60 border border-cyan-500/30 text-cyan-400">
-                <Cpu className="w-5 h-5" />
-              </span>
+export const Pillars: React.FC = () => (
+  <section className="py-16 border-y border-divider bg-surface">
+    <div className="max-w-7xl mx-auto px-6 sm:px-10">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+        {[
+          { icon: Cpu,          val: 21,   suf: '',  label: 'Security Rules',     sub: 'YAML data-driven',  color: 'text-primary bg-primary/10 border-primary/20' },
+          { icon: ShieldCheck,  val: 100,  suf: '%', label: 'Read-Only Analysis', sub: 'No code executed',   color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+          { icon: Lock,         val: 0,    suf: '',  label: 'Destructive Probes', sub: 'localhost-only guard',color: 'text-blue-600 bg-blue-50 border-blue-200' },
+          { icon: CheckCircle2, val: 7,    suf: '',  label: 'OWASP Pillars',      sub: 'Top 10:2025',       color: 'text-purple-600 bg-purple-50 border-purple-200' },
+        ].map(({ icon: Icon, val, suf, label, sub, color }) => (
+          <div key={label} className="p-4">
+            <span className={`inline-flex p-2.5 rounded-2xl border mb-3 ${color}`}>
+              <Icon className="w-5 h-5" strokeWidth={2.2} />
+            </span>
+            <div className="text-4xl sm:text-5xl font-extrabold font-display text-ink">
+              <CountUp end={val} suffix={suf} />
             </div>
-            <div className="text-3xl sm:text-5xl font-extrabold font-display text-white tracking-tight">
-              <CountUp end={21} />
-            </div>
-            <p className="mt-2 text-xs font-mono uppercase tracking-wider text-slate-400">
-              Data-Driven Rules
-            </p>
-            <p className="text-[11px] text-slate-500 mt-1">YAML rule definitions</p>
+            <p className="mt-1 text-xs font-mono uppercase tracking-wider text-ink/80">{label}</p>
+            <p className="text-xs text-muted mt-0.5">{sub}</p>
           </div>
-
-          {/* Pillar 2 */}
-          <div className="p-4">
-            <div className="flex items-center justify-center mb-3">
-              <span className="p-2.5 rounded-2xl bg-emerald-950/60 border border-emerald-500/30 text-emerald-400">
-                <ShieldCheck className="w-5 h-5" />
-              </span>
-            </div>
-            <div className="text-3xl sm:text-5xl font-extrabold font-display text-white tracking-tight">
-              <CountUp end={100} suffix="%" />
-            </div>
-            <p className="mt-2 text-xs font-mono uppercase tracking-wider text-slate-400">
-              Read-Only AST
-            </p>
-            <p className="text-[11px] text-slate-500 mt-1">Zero code execution</p>
-          </div>
-
-          {/* Pillar 3 */}
-          <div className="p-4">
-            <div className="flex items-center justify-center mb-3">
-              <span className="p-2.5 rounded-2xl bg-blue-950/60 border border-blue-500/30 text-blue-400">
-                <Lock className="w-5 h-5" />
-              </span>
-            </div>
-            <div className="text-3xl sm:text-5xl font-extrabold font-display text-white tracking-tight">
-              <CountUp end={0} />
-            </div>
-            <p className="mt-2 text-xs font-mono uppercase tracking-wider text-slate-400">
-              Destructive Probes
-            </p>
-            <p className="text-[11px] text-slate-500 mt-1">Localhost only guards</p>
-          </div>
-
-          {/* Pillar 4 */}
-          <div className="p-4">
-            <div className="flex items-center justify-center mb-3">
-              <span className="p-2.5 rounded-2xl bg-purple-950/60 border border-purple-500/30 text-purple-400">
-                <CheckCircle2 className="w-5 h-5" />
-              </span>
-            </div>
-            <div className="text-3xl sm:text-5xl font-extrabold font-display text-white tracking-tight">
-              <CountUp end={7} />
-            </div>
-            <p className="mt-2 text-xs font-mono uppercase tracking-wider text-slate-400">
-              OWASP 2025 Pillars
-            </p>
-            <p className="text-[11px] text-slate-500 mt-1">CWE mapped taxonomy</p>
-          </div>
-        </div>
+        ))}
       </div>
-    </section>
-  );
-};
+    </div>
+  </section>
+);

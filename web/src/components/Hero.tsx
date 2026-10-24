@@ -1,119 +1,107 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
-import { ArrowRight, GitBranch, Terminal } from 'lucide-react';
+import { ArrowRight, GitBranch, Search, Loader2, FolderCode, Sparkles, Globe } from 'lucide-react';
 
 interface HeroProps {
   onScan: (url: string) => void;
   isLoading: boolean;
+  isBackendLive: boolean;
 }
 
-export const Hero: React.FC<HeroProps> = ({ onScan, isLoading }) => {
+export const Hero: React.FC<HeroProps> = ({ onScan, isLoading, isBackendLive }) => {
+  const [input, setInput] = useState('');
   const heroRef = useRef<HTMLDivElement>(null);
-  const [inputVal, setInputVal] = React.useState('');
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.from('.hero-badge', { y: 20, opacity: 0, duration: 0.8, ease: 'power3.out', delay: 0.1 });
-      gsap.from('.hero-line-1', { y: 35, opacity: 0, duration: 0.9, ease: 'power3.out', delay: 0.25 });
-      gsap.from('.hero-line-2', { y: 45, opacity: 0, duration: 1.1, ease: 'power3.out', delay: 0.4 });
-      gsap.from('.hero-meta', { y: 25, opacity: 0, duration: 0.9, ease: 'power3.out', delay: 0.6 });
-      gsap.from('.hero-intake', { y: 25, opacity: 0, duration: 0.9, ease: 'power3.out', delay: 0.75 });
+      gsap.from('.hero-eyebrow', { y: 20, opacity: 0, duration: 0.7, ease: 'power3.out', delay: 0.1 });
+      gsap.from('.hero-h1', { y: 32, opacity: 0, duration: 0.9, ease: 'power3.out', delay: 0.25 });
+      gsap.from('.hero-sub', { y: 24, opacity: 0, duration: 0.8, ease: 'power3.out', delay: 0.45 });
+      gsap.from('.hero-form', { y: 20, opacity: 0, duration: 0.8, ease: 'power3.out', delay: 0.6 });
     }, heroRef);
     return () => ctx.revert();
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputVal.trim()) onScan(inputVal.trim());
+    if (input.trim() && !isLoading) onScan(input.trim());
   };
 
+  const quickScan = (val: string) => { setInput(val); onScan(val); };
+
   return (
-    <section ref={heroRef} className="relative min-h-[90dvh] flex flex-col justify-center pt-24 pb-16 overflow-hidden">
-      {/* Grid and Ambient Glow */}
-      <div className="absolute inset-0 grid-bg pointer-events-none opacity-40" />
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-cyan-500/15 via-blue-600/10 to-emerald-500/10 blur-[130px] pointer-events-none rounded-full" />
+    <section ref={heroRef} className="relative min-h-[88dvh] flex flex-col justify-center pt-28 pb-16 overflow-hidden">
+      {/* Subtle grid + ambient blob */}
+      <div className="absolute inset-0 grid-bg opacity-60 pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-primary/8 blur-[120px] rounded-full pointer-events-none" />
 
-      {/* Floating particles */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 right-[15%] h-2 w-2 rounded-full bg-cyan-400/50 animate-float" style={{ animationDelay: '0s' }} />
-        <div className="absolute top-[60%] right-[8%] h-1.5 w-1.5 rounded-full bg-emerald-400/40 animate-float" style={{ animationDelay: '1.8s' }} />
-        <div className="absolute top-[45%] left-[12%] h-2 w-2 rounded-full bg-blue-500/40 animate-float" style={{ animationDelay: '3.2s' }} />
-      </div>
+      <div className="relative z-10 max-w-4xl mx-auto px-6 sm:px-10 text-center">
+        {/* Eyebrow */}
+        <span className="hero-eyebrow inline-flex items-center gap-2 px-3.5 py-1.5 mb-6 rounded-full bg-primary/10 border border-primary/25 text-primary text-xs font-mono uppercase tracking-[0.18em]">
+          <GitBranch className="w-3.5 h-3.5" />
+          AST-Based Security Scanner — OWASP 2025
+        </span>
 
-      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        {/* Eyebrow badge */}
-        <div className="hero-badge inline-flex items-center gap-2 px-3.5 py-1.5 mb-6 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 text-xs font-mono">
-          <Terminal className="w-3.5 h-3.5 text-cyan-400" />
-          <span>AUTONOMOUS AST AUDITOR & ATTACK FLOW CORRELATOR</span>
-        </div>
-
-        {/* Display Typography */}
-        <h1 className="font-display font-extrabold text-white leading-[1.0] tracking-tight">
-          <span className="hero-line-1 block text-4xl sm:text-6xl lg:text-7xl">
-            Vulnerabilities Uncovered.
-          </span>
-          <span
-            className="hero-line-2 block font-serif italic font-medium text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 text-5xl sm:text-7xl lg:text-8xl mt-3"
-            style={{ lineHeight: '0.95' }}
-          >
-            Every attack path mapped.
+        {/* Headline */}
+        <h1 className="hero-h1 font-display font-extrabold tracking-tight leading-[1.0]">
+          <span className="block text-4xl sm:text-6xl lg:text-7xl text-ink">Find security holes</span>
+          <span className="block font-serif italic font-semibold text-primary text-5xl sm:text-7xl lg:text-8xl mt-2" style={{ lineHeight: '0.95' }}>
+            before attackers do.
           </span>
         </h1>
 
-        {/* Subtitle */}
-        <p className="hero-meta mx-auto max-w-2xl text-slate-400 text-sm sm:text-base lg:text-lg mt-6 leading-relaxed">
-          Paste any public GitHub repository or target endpoint. SecAudit inspects application routes via Python's AST,
-          evaluates 21 data-driven OWASP Top 10:2025 rules, and synthesizes multi-stage exploit chains without executing target code.
+        {/* Subtext */}
+        <p className="hero-sub mt-6 text-muted text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
+          Paste a public GitHub repository URL. SecAudit reads the source code (never runs it),
+          finds real vulnerabilities, and explains each problem in plain language with a clear fix.
         </p>
 
-        {/* Hero Quick Intake */}
-        <div className="hero-intake mt-8 max-w-2xl mx-auto">
-          <form onSubmit={handleSubmit} className="relative group">
-            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-cyan-500/30 to-blue-600/30 blur-md opacity-75 group-hover:opacity-100 transition duration-500" />
-            <div className="relative flex flex-col sm:flex-row items-stretch gap-2 p-2 bg-[#0c1322] border border-cyan-500/40 rounded-2xl shadow-2xl">
-              <div className="relative flex-1 flex items-center pl-3">
-                <GitBranch className="w-4 h-4 text-cyan-400 mr-2 shrink-0" />
+        {/* Scan form */}
+        <div className="hero-form mt-8 max-w-2xl mx-auto">
+          <form onSubmit={handleSubmit} className="relative">
+            <div className="flex flex-col sm:flex-row gap-2 p-2 bg-surface border-2 border-primary/30 rounded-2xl shadow-xl shadow-primary/10 focus-within:border-primary transition-colors">
+              <div className="flex-1 flex items-center gap-2 px-3">
+                <Search className="w-4 h-4 text-muted shrink-0" />
                 <input
-                  type="text"
-                  value={inputVal}
-                  onChange={(e) => setInputVal(e.target.value)}
-                  placeholder="https://github.com/org/repo or click preset below"
-                  className="w-full bg-transparent text-sm text-white placeholder-slate-500 focus:outline-none font-mono py-2"
+                  type="text" value={input}
+                  onChange={e => setInput(e.target.value)}
+                  placeholder="https://github.com/org/repo"
+                  disabled={isLoading}
+                  className="flex-1 bg-transparent text-sm text-ink placeholder-muted/70 focus:outline-none font-mono py-2"
                 />
               </div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="magnetic-btn flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-cyan-500/30 cursor-pointer disabled:opacity-50"
-              >
-                <span>{isLoading ? 'Scanning AST...' : 'Audit Target'}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+              <button type="submit" disabled={isLoading || !input.trim()}
+                className="magnetic-btn flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-sm transition-colors shadow-lg shadow-primary/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+                {isLoading ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Scanning…</span></>
+                           : <><span>Scan Repo</span><ArrowRight className="w-4 h-4" /></>}
               </button>
             </div>
           </form>
 
-          {/* Quick preset chips */}
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs font-mono">
-            <span className="text-slate-500">Live Samples:</span>
-            <button
-              onClick={() => { setInputVal('sample:vulnerable'); onScan('sample:vulnerable'); }}
-              className="px-2.5 py-1 rounded-md bg-red-950/40 border border-red-500/30 text-red-300 hover:bg-red-900/50 transition cursor-pointer"
-            >
-              🔥 Vulnerable AI App (12 Flaws)
+          {/* Preset chips */}
+          <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs">
+            <span className="text-muted font-mono self-center">Try:</span>
+            <button onClick={() => quickScan('sample:vulnerable')} disabled={isLoading}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition cursor-pointer">
+              <FolderCode className="w-3.5 h-3.5" /> Vulnerable Flask App (12 planted flaws)
             </button>
-            <button
-              onClick={() => { setInputVal('sample:clean'); onScan('sample:clean'); }}
-              className="px-2.5 py-1 rounded-md bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-900/50 transition cursor-pointer"
-            >
-              🛡️ Patched App (0 Flaws)
+            <button onClick={() => quickScan('sample:clean')} disabled={isLoading}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition cursor-pointer">
+              <Sparkles className="w-3.5 h-3.5" /> Patched Version (0 findings)
             </button>
-            <button
-              onClick={() => { setInputVal('https://github.com/bottlepy/bottle'); onScan('https://github.com/bottlepy/bottle'); }}
-              className="px-2.5 py-1 rounded-md bg-slate-900/80 border border-slate-700 text-slate-300 hover:border-cyan-500/50 transition cursor-pointer"
-            >
-              📦 Real GitHub (bottle)
-            </button>
+            {isBackendLive && (
+              <button onClick={() => quickScan('https://github.com/bottlepy/bottle')} disabled={isLoading}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition cursor-pointer">
+                <Globe className="w-3.5 h-3.5" /> Live: bottlepy/bottle
+              </button>
+            )}
           </div>
+
+          {isLoading && (
+            <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20 text-sm text-primary font-mono text-center animate-pulse">
+              Reading source code via AST — never executing target code…
+            </div>
+          )}
         </div>
       </div>
     </section>

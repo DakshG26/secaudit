@@ -1,137 +1,131 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Code2, ShieldAlert } from 'lucide-react';
 import { Finding, Severity } from '../types/security';
+import { ChevronDown, ChevronUp, Code2, ShieldAlert } from 'lucide-react';
 
-interface FindingsListProps {
-  findings: Finding[];
-}
+interface FindingsListProps { findings: Finding[]; }
+
+const SEVERITY_CONFIG: Record<Severity | 'info', { label: string; bg: string; text: string; border: string; dot: string }> = {
+  critical: { label: 'Critical',  bg: 'bg-red-50',    text: 'text-red-700',    border: 'border-red-200',    dot: 'bg-red-500' },
+  high:     { label: 'High',      bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', dot: 'bg-orange-500' },
+  medium:   { label: 'Medium',    bg: 'bg-amber-50',  text: 'text-amber-700',  border: 'border-amber-200',  dot: 'bg-amber-400' },
+  low:      { label: 'Low',       bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200',   dot: 'bg-blue-400' },
+  info:     { label: 'Info',      bg: 'bg-gray-50',   text: 'text-gray-600',   border: 'border-gray-200',   dot: 'bg-gray-400' },
+};
+
+const CONFIDENCE_LABEL: Record<string, { label: string; color: string }> = {
+  confirmed: { label: '✓ Confirmed', color: 'text-red-600 font-semibold' },
+  likely:    { label: '~ Likely',    color: 'text-amber-600' },
+  possible:  { label: '? Possible',  color: 'text-muted' },
+};
 
 export const FindingsList: React.FC<FindingsListProps> = ({ findings }) => {
-  const [selectedSev, setSelectedSev] = useState<Severity | 'all'>('all');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [sel, setSel] = useState<Severity | 'all'>('all');
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [allExpanded, setAllExpanded] = useState<boolean>(false);
 
-  const filtered = findings.filter((f) => (selectedSev === 'all' ? true : f.severity === selectedSev));
+  const filtered = sel === 'all' ? findings : findings.filter(f => f.severity === sel);
 
-  const getSevBadge = (sev: Severity) => {
-    switch (sev) {
-      case 'critical':
-        return 'bg-red-500/20 text-red-300 border-red-500/40';
-      case 'high':
-        return 'bg-orange-500/20 text-orange-300 border-orange-500/40';
-      case 'medium':
-        return 'bg-amber-500/20 text-amber-300 border-amber-500/40';
-      case 'low':
-        return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
-      default:
-        return 'bg-slate-500/20 text-slate-300 border-slate-500/40';
-    }
-  };
+  if (findings.length === 0) {
+    return (
+      <div className="py-12 text-center text-muted">
+        <ShieldAlert className="w-10 h-10 mx-auto mb-3 text-divider" />
+        <p className="text-base font-medium">No findings for this target.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      {/* Header and Filter */}
+      {/* Header + filter */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-cyan-400" />
-            Security Findings ({findings.length})
+          <h2 className="font-display font-bold text-xl text-ink flex items-center gap-2">
+            <ShieldAlert className="w-5 h-5 text-primary" />
+            Security Issues Found
+            <span className="text-sm font-body font-normal text-muted">({findings.length} total)</span>
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            OWASP Top 10:2025 verified static vulnerabilities with actionable code remedies.
-          </p>
+          <p className="text-xs text-muted mt-0.5">Click any card to reveal exact code evidence and recommended fix.</p>
         </div>
 
-        {/* Severity pill buttons */}
-        <div className="flex items-center gap-1 p-1 bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono">
-          {(['all', 'critical', 'high', 'medium', 'low'] as const).map((sev) => (
-            <button
-              key={sev}
-              onClick={() => setSelectedSev(sev)}
-              className={`px-2.5 py-1 rounded capitalize transition cursor-pointer ${
-                selectedSev === sev ? 'bg-cyan-500/20 text-cyan-300 font-bold' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {sev}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setAllExpanded(!allExpanded)}
+            className="px-2.5 py-1 text-xs font-mono text-primary bg-primary/10 hover:bg-primary/20 border border-primary/25 rounded-lg transition cursor-pointer"
+          >
+            {allExpanded ? 'Collapse All' : 'Expand All'}
+          </button>
+          <div className="flex items-center gap-1 p-1 bg-surface border border-divider rounded-xl text-xs font-mono">
+            {(['all','critical','high','medium','low'] as const).map(s => (
+              <button key={s} onClick={() => setSel(s)}
+                className={`px-2.5 py-1 rounded-lg capitalize transition cursor-pointer ${
+                  sel === s ? 'bg-primary text-white font-semibold' : 'text-muted hover:text-ink'
+                }`}>
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Cards list */}
+      {/* Finding cards */}
       <div className="space-y-3">
-        {filtered.map((item) => {
-          const isExpanded = expandedId === item.id;
+        {filtered.map(f => {
+          const cfg = SEVERITY_CONFIG[f.severity] ?? SEVERITY_CONFIG.info;
+          const conf = CONFIDENCE_LABEL[f.confidence] ?? { label: f.confidence, color: 'text-muted' };
+          const open = allExpanded || expanded === f.id;
           return (
-            <div
-              key={item.id}
-              className="rounded-xl border border-slate-800 bg-[#0d1629] overflow-hidden transition hover:border-slate-700"
-            >
-              <div
-                onClick={() => setExpandedId(isExpanded ? null : item.id)}
-                className="p-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-800/30 transition select-none"
+            <div key={f.id} className={`rounded-2xl border-2 ${cfg.border} overflow-hidden bg-surface shadow-sm hover:shadow-md transition-shadow`}>
+              {/* Header row */}
+              <button
+                onClick={() => setExpanded(open ? (allExpanded ? f.id : null) : f.id)}
+                className="w-full text-left p-4 flex items-start gap-3 cursor-pointer hover:bg-divider/20 transition-colors"
               >
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border ${getSevBadge(item.severity)}`}>
-                      {item.severity}
+                <span className={`mt-1 w-2.5 h-2.5 rounded-full ${cfg.dot} shrink-0 ring-2 ring-offset-2 ring-offset-surface ${cfg.dot.replace('bg-','ring-')}/30`} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className={`px-2 py-0.5 rounded-md text-xs font-mono font-bold uppercase ${cfg.bg} ${cfg.text} border ${cfg.border}`}>
+                      {cfg.label}
                     </span>
-                    <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-800/40">
-                      {item.owasp}
+                    <span className="px-2 py-0.5 rounded-md text-xs font-mono bg-primary/10 text-primary border border-primary/20">
+                      {f.owasp}
                     </span>
-                    <span className="text-[10px] font-mono text-slate-400">
-                      {item.cwe}
-                    </span>
-                    <span className="text-[10px] font-mono text-slate-500">
-                      [{item.confidence}]
-                    </span>
+                    <span className="text-xs font-mono text-muted">{f.cwe}</span>
+                    <span className={`text-xs font-mono ${conf.color}`}>{conf.label}</span>
                   </div>
-                  <h3 className="text-sm font-semibold text-white">{item.title}</h3>
-                  <p className="text-xs font-mono text-slate-400 mt-0.5">{item.location}</p>
+                  <p className="font-display font-semibold text-base text-ink">{f.title}</p>
+                  <p className="text-xs text-muted mt-0.5 line-clamp-1">{f.impact}</p>
+                  <p className="text-[11px] font-mono text-primary/80 mt-1 truncate">📍 {f.location}</p>
                 </div>
-
-                <div className="text-slate-400">
-                  {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                <div className="text-muted shrink-0 mt-0.5">
+                  {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </div>
-              </div>
+              </button>
 
-              {/* Collapsible Details */}
-              {isExpanded && (
-                <div className="px-4 pb-4 pt-1 border-t border-slate-800/80 space-y-3 text-xs bg-[#090f1d]">
-                  {/* Evidence */}
-                  <div>
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1">
-                      Code Evidence
-                    </span>
-                    <pre className="p-2.5 rounded bg-[#050811] border border-slate-800 text-red-300 font-mono text-xs overflow-x-auto">
-                      {item.evidence}
-                    </pre>
+              {/* Expanded detail */}
+              {open && (
+                <div className="px-4 pb-4 pt-0 space-y-3 animate-fade-in border-t border-divider bg-background">
+                  <div className="pt-3">
+                    <p className="text-xs font-mono uppercase tracking-wider text-muted mb-1.5">Exact Code Line Found</p>
+                    <pre className={`p-3 rounded-xl ${cfg.bg} border ${cfg.border} text-xs font-mono text-ink overflow-x-auto whitespace-pre-wrap`}>{f.evidence}</pre>
                   </div>
 
-                  {/* Impact & Remediation */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="p-2.5 rounded bg-slate-900/40 border border-slate-800">
-                      <span className="text-[10px] font-mono uppercase text-amber-400 font-bold block mb-1">
-                        Impact
-                      </span>
-                      <p className="text-slate-300 leading-relaxed">{item.impact}</p>
+                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+                      <p className="text-xs font-mono uppercase tracking-wider text-amber-700 font-bold mb-1">Why this is dangerous</p>
+                      <p className="text-xs text-ink leading-relaxed">{f.impact}</p>
                     </div>
-                    <div className="p-2.5 rounded bg-slate-900/40 border border-slate-800">
-                      <span className="text-[10px] font-mono uppercase text-emerald-400 font-bold block mb-1">
-                        Remediation
-                      </span>
-                      <p className="text-slate-300 leading-relaxed">{item.remediation}</p>
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                      <p className="text-xs font-mono uppercase tracking-wider text-emerald-700 font-bold mb-1">How to fix it</p>
+                      <p className="text-xs text-ink leading-relaxed">{f.remediation}</p>
                     </div>
                   </div>
 
-                  {/* Fixed Code example */}
-                  {item.fixed_code && (
+                  {f.fixed_code && (
                     <div>
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 block mb-1 flex items-center gap-1">
+                      <p className="text-xs font-mono uppercase tracking-wider text-emerald-700 mb-1.5 flex items-center gap-1 font-bold">
                         <Code2 className="w-3.5 h-3.5" /> Recommended Fix
-                      </span>
-                      <pre className="p-2.5 rounded bg-[#050811] border border-emerald-900/40 text-emerald-300 font-mono text-xs overflow-x-auto">
-                        {item.fixed_code}
-                      </pre>
+                      </p>
+                      <pre className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-mono text-emerald-900 overflow-x-auto whitespace-pre">{f.fixed_code}</pre>
                     </div>
                   )}
                 </div>

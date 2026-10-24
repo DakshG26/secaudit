@@ -10,106 +10,104 @@ import { Footer } from './components/Footer';
 import { ScanResult } from './types/security';
 import { MOCK_VULNERABLE_SCAN, MOCK_CLEAN_SCAN } from './data/mockData';
 
-export const App: React.FC = () => {
-  const [scanResult, setScanResult] = useState<ScanResult>(MOCK_VULNERABLE_SCAN);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isBackendLive, setIsBackendLive] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'flows' | 'findings' | 'matrix' | 'endpoints'>('flows');
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+const App: React.FC = () => {
+  const [scan, setScan] = useState<ScanResult>(MOCK_VULNERABLE_SCAN);
+  const [loading, setLoading] = useState(false);
+  const [backendLive, setBackendLive] = useState(false);
+  const [tab, setTab] = useState<'flows' | 'findings' | 'matrix' | 'endpoints'>('findings');
+  const [error, setError] = useState<string | null>(null);
 
-  // Check backend server on load
   useEffect(() => {
     fetch('http://localhost:8000/api/health')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data && data.status === 'healthy') setIsBackendLive(true);
-      })
-      .catch(() => setIsBackendLive(false));
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.status === 'healthy') setBackendLive(true); })
+      .catch(() => {});
   }, []);
 
+  const scrollToScanner = () => {
+    document.getElementById('scanner')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const handleScan = async (url: string) => {
-    setIsLoading(true);
-    setErrorMsg(null);
+    setLoading(true);
+    setError(null);
+    scrollToScanner();
 
-    // Scroll smoothly to the workspace
-    const el = document.getElementById('audit');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
+    // Local presets — instant
+    if (url === 'sample:clean') {
+      await new Promise(r => setTimeout(r, 400));
+      setScan(MOCK_CLEAN_SCAN);
+      setTab('findings');
+      setLoading(false);
+      return;
+    }
+    if (url === 'sample:vulnerable') {
+      await new Promise(r => setTimeout(r, 400));
+      setScan(MOCK_VULNERABLE_SCAN);
+      setTab('findings');
+      setLoading(false);
+      return;
+    }
 
-    // If backend is live, execute real AST & rule scan
-    if (isBackendLive) {
+    // Live API scan (real repos)
+    if (backendLive) {
       try {
-        const response = await fetch('http://localhost:8000/api/scan', {
+        const res = await fetch('http://localhost:8000/api/scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url }),
         });
-        const data = await response.json();
-        if (response.ok) {
-          setScanResult(data);
+        const data = await res.json();
+        if (res.ok) {
+          setScan(data);
+          // Default to findings tab — most useful
+          setTab(data.findings.length > 0 ? 'findings' : 'endpoints');
         } else {
-          setErrorMsg(data.error || 'Scan failed on target repository');
+          setError(data.error ?? 'Scan failed');
         }
-      } catch (err: any) {
-        setErrorMsg('Failed to connect to SecAudit API engine: ' + err.message);
+      } catch (e: any) {
+        setError('Cannot reach SecAudit API. Is the backend running on port 8000?');
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
       return;
     }
 
-    // Offline UI Fallback simulation
-    if (url === 'sample:clean' || url === 'clean' || url === 'demo_app_fixed') {
-      setTimeout(() => { setScanResult(MOCK_CLEAN_SCAN); setIsLoading(false); }, 400);
-      return;
-    }
-    setTimeout(() => {
-      setScanResult({ ...MOCK_VULNERABLE_SCAN, target: url, scan_time: new Date().toISOString() });
-      setIsLoading(false);
-    }, 600);
+    // Offline fallback
+    await new Promise(r => setTimeout(r, 700));
+    setScan({ ...MOCK_VULNERABLE_SCAN, target: url, scan_time: new Date().toISOString() });
+    setLoading(false);
   };
 
-  const handleSelectPreset = (p: 'vulnerable' | 'clean') => {
-    setScanResult(p === 'clean' ? MOCK_CLEAN_SCAN : MOCK_VULNERABLE_SCAN);
-    const el = document.getElementById('audit');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  const handlePreset = (p: 'vulnerable' | 'clean') => {
+    setScan(p === 'clean' ? MOCK_CLEAN_SCAN : MOCK_VULNERABLE_SCAN);
+    setTab('findings');
+    scrollToScanner();
+  };
+
+  const jumpToTab = (t: 'flows' | 'findings' | 'matrix' | 'endpoints') => {
+    setTab(t);
+    scrollToScanner();
   };
 
   return (
-    <div className="relative min-h-screen bg-[#070b14] text-slate-100 selection:bg-cyan-500 selection:text-black">
-      {/* 5% Noise overlay from build-premium-website design system */}
+    <div className="min-h-screen bg-background text-ink">
       <div className="noise-overlay" />
-
-      <Navbar onSelectPreset={handleSelectPreset} isBackendLive={isBackendLive} />
-
-      <main className="relative z-10">
-        <Hero onScan={handleScan} isLoading={isLoading} />
-
+      <Navbar onSelectPreset={handlePreset} isBackendLive={backendLive} />
+      <main>
+        <Hero onScan={handleScan} isLoading={loading} isBackendLive={backendLive} />
         <Pillars />
-
-        <InteractiveFeatures
-          chains={scanResult.chains}
-          matrix={scanResult.access_matrix}
-          onSelectTab={(tab) => {
-            setActiveTab(tab);
-            const el = document.getElementById('flows');
-            if (el) el.scrollIntoView({ behavior: 'smooth' });
-          }}
-        />
-
+        <InteractiveFeatures chains={scan.chains} onSelectTab={jumpToTab} />
         <Protocol />
-
         <AuditWorkspace
-          scanResult={scanResult}
-          isLoading={isLoading}
-          errorMsg={errorMsg}
-          onScan={handleScan}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          scanResult={scan}
+          isLoading={loading}
+          errorMsg={error}
+          activeTab={tab}
+          setActiveTab={setTab}
         />
-
         <ServicesGrid />
       </main>
-
       <Footer />
     </div>
   );
