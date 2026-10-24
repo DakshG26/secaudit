@@ -51,7 +51,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
           totalFindings={scan.findings.length}
           isLiveScanning={isLiveScanning}
           onCancel={() => onSelectScreen('home')}
-          onViewResults={() => onSelectScreen('findings')}
+          onViewResults={() => onSelectScreen('report')}
         />
       ),
     },

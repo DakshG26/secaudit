@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, ArrowUpRight, Menu, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Shield, ArrowUpRight, Menu, X, AlertTriangle, CheckCircle2, LayoutDashboard } from 'lucide-react';
 
 interface NavbarProps {
   onSelectPreset: (p: 'vulnerable' | 'clean') => void;
   isBackendLive: boolean;
+  onOpenDashboard?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onSelectPreset, isBackendLive }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onSelectPreset, isBackendLive, onOpenDashboard }) => {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -19,16 +20,21 @@ export const Navbar: React.FC<NavbarProps> = ({ onSelectPreset, isBackendLive })
   return (
     <>
       <nav className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 rounded-full px-4 sm:px-6 py-2.5 w-[calc(100%-2rem)] max-w-5xl ${
-        scrolled ? 'glass shadow-md shadow-primary/10' : 'bg-white/70 backdrop-blur-md border border-divider'
+        scrolled ? 'glass shadow-md shadow-primary/10' : 'bg-white/80 backdrop-blur-md border border-divider shadow-sm'
       }`}>
         <div className="flex items-center justify-between gap-4">
           <a href="#" className="flex items-center gap-2.5 group">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-white shadow-md shadow-primary/30">
-              <Shield className="h-4 w-4" strokeWidth={2.4} />
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-[#6554F0] to-[#66D9F5] text-white shadow-md shadow-primary/30">
+              <Shield className="h-4 w-4 fill-white/20" strokeWidth={2.4} />
             </span>
-            <span className="font-display font-bold text-base text-ink tracking-tight">
-              Sec<span className="text-primary">Audit</span>
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-display font-bold text-base text-ink tracking-tight">
+                Sec<span className="text-primary">AI</span>
+              </span>
+              <span className="hidden sm:inline-block text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold">
+                Auditor
+              </span>
+            </div>
           </a>
 
           <div className="hidden md:flex items-center gap-6">
@@ -61,9 +67,19 @@ export const Navbar: React.FC<NavbarProps> = ({ onSelectPreset, isBackendLive })
               </button>
             </div>
 
+            {onOpenDashboard && (
+              <button
+                onClick={onOpenDashboard}
+                className="magnetic-btn inline-flex items-center gap-1.5 bg-gradient-to-r from-[#6554F0] to-[#342D8C] text-white px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-md shadow-[#6554F0]/30 hover:scale-102 transition-all cursor-pointer"
+              >
+                <LayoutDashboard className="h-3.5 w-3.5" />
+                <span>Dashboard</span>
+              </button>
+            )}
+
             <a href="#scanner"
-              className="magnetic-btn inline-flex items-center gap-1.5 bg-primary hover:bg-primary-dark text-white px-4 py-1.5 rounded-full text-xs font-semibold shadow-lg shadow-primary/25 transition-colors">
-              Scan Now <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+              className="magnetic-btn hidden sm:inline-flex items-center gap-1.5 bg-surface hover:bg-primary/5 text-ink border border-divider px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors">
+              Scan Now <ArrowUpRight className="h-3.5 w-3.5 text-primary" strokeWidth={2.5} />
             </a>
 
             <button onClick={() => setOpen(true)} className="md:hidden p-1.5 text-ink/70 hover:text-ink">
@@ -77,25 +93,43 @@ export const Navbar: React.FC<NavbarProps> = ({ onSelectPreset, isBackendLive })
       {open && (
         <div className="fixed inset-0 z-[60] md:hidden">
           <div className="absolute inset-0 bg-ink/30 backdrop-blur-sm" onClick={() => setOpen(false)} />
-          <div className="absolute top-0 left-0 right-0 bg-surface rounded-b-4xl px-6 pt-8 pb-10 shadow-2xl">
-            <div className="flex justify-between items-center mb-8">
-              <span className="font-display font-bold text-xl text-ink">SecAudit</span>
-              <button onClick={() => setOpen(false)} className="p-1.5 rounded-full bg-divider/60 text-ink/70"><X className="h-5 w-5" /></button>
+          <div className="absolute top-0 left-0 right-0 bg-surface rounded-b-3xl px-6 pt-6 pb-8 shadow-2xl border-b border-divider">
+            <div className="flex items-center justify-between pb-4 border-b border-divider">
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-white">
+                  <Shield className="h-4 w-4" />
+                </span>
+                <span className="font-display font-bold text-ink">SecAI</span>
+              </div>
+              <button onClick={() => setOpen(false)} className="p-1.5 text-ink/60 hover:text-ink">
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <div className="flex flex-col gap-1 mb-8">
-              {[['#scanner','Scanner'],['#how-it-works','How It Works'],['#coverage','OWASP Coverage']].map(([h,l]) => (
-                <a key={h} href={h} onClick={() => setOpen(false)}
-                  className="font-display text-2xl font-semibold text-ink py-3 border-b border-divider">{l}</a>
+            <div className="flex flex-col gap-3 py-4">
+              {['#scanner','#how-it-works','#coverage'].map((href) => (
+                <a key={href} href={href} onClick={() => setOpen(false)}
+                  className="text-sm font-mono text-ink/80 hover:text-primary py-1">
+                  {href.slice(1).replace(/-/g,' ')}
+                </a>
               ))}
             </div>
-            <div className="space-y-2">
+            {onOpenDashboard && (
+              <button
+                onClick={() => { setOpen(false); onOpenDashboard(); }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-[#6554F0] to-[#342D8C] text-white text-xs font-semibold shadow-md mb-2 cursor-pointer"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Go to SecAI Dashboard</span>
+              </button>
+            )}
+            <div className="flex gap-2 pt-2 border-t border-divider text-xs">
               <button onClick={() => { onSelectPreset('vulnerable'); setOpen(false); }}
-                className="w-full py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium">
-                Load Vulnerable App Demo
+                className="flex-1 py-2 text-center rounded-lg bg-red-50 text-red-700 font-medium">
+                Vulnerable Demo
               </button>
               <button onClick={() => { onSelectPreset('clean'); setOpen(false); }}
-                className="w-full py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium">
-                Load Patched App Demo
+                className="flex-1 py-2 text-center rounded-lg bg-emerald-50 text-emerald-700 font-medium">
+                Clean Demo
               </button>
             </div>
           </div>

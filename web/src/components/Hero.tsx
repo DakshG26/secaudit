@@ -66,7 +66,7 @@ export const Hero: React.FC<HeroProps> = ({ onScan, isLoading, isBackendLive, er
                 <input
                   type="text" value={input}
                   onChange={e => setInput(e.target.value)}
-                  placeholder="https://github.com/org/repo"
+                  placeholder="Website URL (google.com) or GitHub repo (org/repo)..."
                   disabled={isLoading}
                   className="flex-1 bg-transparent text-sm text-ink placeholder-muted/70 focus:outline-none font-mono py-2"
                 />

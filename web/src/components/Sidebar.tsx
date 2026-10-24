@@ -7,10 +7,11 @@ import {
   Network, 
   FileText, 
   Wrench, 
-  Settings
+  Settings,
+  Globe
 } from 'lucide-react';
 
-export type ScreenId = 'home' | 'scan' | 'findings' | 'endpoints' | 'report' | 'remediation' | 'settings';
+export type ScreenId = 'website' | 'home' | 'scan' | 'findings' | 'endpoints' | 'report' | 'remediation' | 'settings';
 
 interface SidebarProps {
   currentScreen: ScreenId;
@@ -30,7 +31,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   endpointsCount = 0,
 }) => {
   const navItems = [
-    { id: 'home' as ScreenId, label: 'Home', icon: LayoutDashboard },
+    { id: 'website' as ScreenId, label: 'Marketing Website', icon: Globe },
+    { id: 'home' as ScreenId, label: 'Home Dashboard', icon: LayoutDashboard },
     { id: 'scan' as ScreenId, label: 'Scan Progress', icon: Radar },
     { id: 'findings' as ScreenId, label: 'Findings', icon: ShieldAlert, badge: findingsCount, badgeColor: findingsCount > 0 ? 'bg-[#F45D75] text-white' : 'bg-[#16B887]/20 text-[#16B887]' },
     { id: 'endpoints' as ScreenId, label: 'Endpoints', icon: Network, badge: endpointsCount, badgeColor: 'bg-[#6554F0]/15 text-[#6554F0]' },

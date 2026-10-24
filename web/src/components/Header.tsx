@@ -2,7 +2,8 @@ import React from 'react';
 import { 
   Grid, 
   Layout, 
-  Play
+  Play,
+  Globe
 } from 'lucide-react';
 import { ScreenId } from './Sidebar';
 
@@ -11,6 +12,7 @@ interface HeaderProps {
   viewMode: 'interactive' | 'board';
   onToggleViewMode: () => void;
   onQuickScan: () => void;
+  onNavigateToWebsite?: () => void;
   target: string;
   isBackendLive?: boolean;
 }
@@ -20,9 +22,11 @@ export const Header: React.FC<HeaderProps> = ({
   viewMode,
   onToggleViewMode,
   onQuickScan,
+  onNavigateToWebsite,
   target,
 }) => {
   const screenTitles: Record<ScreenId, string> = {
+    website: 'Marketing Website',
     home: 'Home Dashboard',
     scan: 'Scan Progress',
     findings: 'Security Findings',
@@ -51,6 +55,18 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="text-[#77819D]">Target:</span>
           <span className="font-mono font-medium text-[#18213D] max-w-[200px] truncate">{target}</span>
         </div>
+
+        {/* Marketing Site Quick Jump */}
+        {onNavigateToWebsite && (
+          <button
+            onClick={onNavigateToWebsite}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-[#E7E9F3] text-[#77819D] hover:text-[#6554F0] hover:border-[#6554F0]/40 transition-all cursor-pointer"
+            title="Open high-end animated marketing website"
+          >
+            <Globe className="w-3.5 h-3.5 text-[#6554F0]" />
+            <span>Marketing Site</span>
+          </button>
+        )}
 
         {/* View Mode Toggle: Interactive vs UI Board */}
         <button

@@ -9,8 +9,17 @@ import { SecurityReport } from './components/screens/SecurityReport';
 import { RemediationGuide } from './components/screens/RemediationGuide';
 import { SettingsView } from './components/screens/SettingsView';
 import { BoardView } from './components/screens/BoardView';
+import { Navbar } from './components/Navbar';
+import { Hero } from './components/Hero';
+import { Pillars } from './components/Pillars';
+import { InteractiveFeatures } from './components/InteractiveFeatures';
+import { Protocol } from './components/Protocol';
+import { AuditWorkspace } from './components/AuditWorkspace';
+import { ServicesGrid } from './components/ServicesGrid';
+import { Footer } from './components/Footer';
 import { ScanResult, Finding } from './types/security';
 import { MOCK_VULNERABLE_SCAN, MOCK_CLEAN_SCAN } from './data/mockData';
+import { LayoutDashboard } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<ScreenId>('home');
@@ -21,6 +30,7 @@ export const App: React.FC = () => {
   const [activeScanTarget, setActiveScanTarget] = useState<string>('sample:vulnerable');
   const [backendLive, setBackendLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'flows' | 'findings' | 'matrix' | 'endpoints'>('flows');
 
   useEffect(() => {
     fetch('http://localhost:8000/api/health')
@@ -86,6 +96,64 @@ export const App: React.FC = () => {
 
   const displayTarget = loading ? activeScanTarget : scan.target;
 
+  // Website-builder marketing landing page view
+  if (currentScreen === 'website') {
+    return (
+      <div className="min-h-screen bg-[#F7F8FC] text-[#18213D] font-sans antialiased relative selection:bg-[#6554F0] selection:text-white">
+        <Navbar
+          onSelectPreset={(p) => handleStartScan(p === 'clean' ? 'sample:clean' : 'sample:vulnerable')}
+          isBackendLive={backendLive}
+          onOpenDashboard={() => setCurrentScreen('home')}
+        />
+
+        <main className="relative z-10 pt-4">
+          <Hero
+            onScan={handleStartScan}
+            isLoading={loading}
+            isBackendLive={backendLive}
+            errorMsg={error}
+          />
+
+          <Pillars />
+
+          <InteractiveFeatures
+            chains={scan.chains}
+            onSelectTab={(tab) => {
+              setActiveWorkspaceTab(tab);
+              const el = document.getElementById('scanner');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+          />
+
+          <Protocol />
+
+          <AuditWorkspace
+            scanResult={scan}
+            isLoading={loading}
+            errorMsg={error}
+            activeTab={activeWorkspaceTab}
+            setActiveTab={setActiveWorkspaceTab}
+          />
+
+          <ServicesGrid />
+        </main>
+
+        <Footer />
+
+        {/* Floating Quick Action to Launch Dashboard */}
+        <div className="fixed bottom-6 right-6 z-50">
+          <button
+            onClick={() => setCurrentScreen('home')}
+            className="flex items-center gap-2 px-5 py-3 rounded-full bg-gradient-to-r from-[#6554F0] to-[#342D8C] text-white text-xs font-semibold shadow-xl shadow-[#6554F0]/35 hover:scale-105 transition-all cursor-pointer"
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            <span>Open SecAI SaaS Dashboard</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#F7F8FC] text-[#18213D] font-sans antialiased">
       <Sidebar
@@ -103,6 +171,7 @@ export const App: React.FC = () => {
           viewMode={viewMode}
           onToggleViewMode={() => setViewMode((p) => (p === 'interactive' ? 'board' : 'interactive'))}
           onQuickScan={() => setCurrentScreen('home')}
+          onNavigateToWebsite={() => setCurrentScreen('website')}
           target={displayTarget}
           isBackendLive={backendLive}
         />
