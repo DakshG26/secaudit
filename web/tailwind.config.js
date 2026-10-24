@@ -4,41 +4,39 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary:      '#2d8fc4',
-        'primary-dark':'#1e6f9f',
-        'primary-light':'#85c4eb',
-        accent:       '#e8956f',
-        'accent-dark':'#d97e54',
-        background:   '#F9F9F9',
-        surface:      '#FFFFFF',
-        ink:          '#1A1A1A',
-        muted:        '#6A6A6A',
-        divider:      '#E0E0E0',
-        deep:         '#0F1419',
+        secai: {
+          purple:       '#6554F0',
+          'purple-dark':'#4E3ED9',
+          'purple-light':'#8273F5',
+          indigo:       '#342D8C',
+          lavender:     '#F0EDFF',
+          bg:           '#F7F8FC',
+          card:         '#FFFFFF',
+          cyan:         '#66D9F5',
+          green:        '#16B887',
+          amber:        '#FFAD42',
+          red:          '#F45D75',
+          text:         '#18213D',
+          muted:        '#77819D',
+          border:       '#E7E9F3',
+          'dark-bg':    '#0E1326',
+          'dark-card':  '#151B38',
+          'dark-border':'#262E54',
+        }
       },
       fontFamily: {
-        display: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
-        serif:   ['"Cormorant Garamond"', 'serif'],
-        body:    ['"Inter"', 'system-ui', 'sans-serif'],
-        mono:    ['"JetBrains Mono"', 'monospace'],
+        sans: ['"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
       },
       borderRadius: {
-        '4xl': '2rem',
-        '5xl': '2.5rem',
+        'xl': '12px',
+        '2xl': '16px',
+        '3xl': '20px',
       },
-      animation: {
-        'float': 'float 6s ease-in-out infinite',
-        'fade-in': 'fade-in 0.4s ease-out',
-      },
-      keyframes: {
-        float: {
-          '0%,100%': { transform: 'translateY(0)' },
-          '50%':     { transform: 'translateY(-8px)' },
-        },
-        'fade-in': {
-          from: { opacity: '0', transform: 'translateY(8px)' },
-          to:   { opacity: '1', transform: 'translateY(0)' },
-        },
+      boxShadow: {
+        'soft': '0 4px 20px -2px rgba(101, 84, 240, 0.08), 0 2px 6px -1px rgba(24, 33, 61, 0.04)',
+        'elevated': '0 10px 30px -4px rgba(101, 84, 240, 0.12), 0 4px 12px -2px rgba(24, 33, 61, 0.06)',
+        'glow-purple': '0 0 25px rgba(101, 84, 240, 0.35)',
       }
     },
   },

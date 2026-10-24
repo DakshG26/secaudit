@@ -1,14 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
-import { ArrowRight, GitBranch, Search, Loader2, FolderCode, Sparkles, Globe } from 'lucide-react';
+import { ArrowRight, GitBranch, Search, Loader2, FolderCode, Sparkles, Globe, AlertTriangle } from 'lucide-react';
 
 interface HeroProps {
   onScan: (url: string) => void;
   isLoading: boolean;
   isBackendLive: boolean;
+  errorMsg?: string | null;
 }
 
-export const Hero: React.FC<HeroProps> = ({ onScan, isLoading, isBackendLive }) => {
+export const Hero: React.FC<HeroProps> = ({ onScan, isLoading, isBackendLive, errorMsg }) => {
   const [input, setInput] = useState('');
   const heroRef = useRef<HTMLDivElement>(null);
 
@@ -96,6 +97,16 @@ export const Hero: React.FC<HeroProps> = ({ onScan, isLoading, isBackendLive }) 
               </button>
             )}
           </div>
+
+          {errorMsg && (
+            <div className="mt-4 p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-900 text-xs sm:text-sm text-left flex items-start gap-3 shadow-md animate-fade-in">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-900">Scan Notice</p>
+                <p className="mt-0.5 text-amber-800 leading-relaxed">{errorMsg}</p>
+              </div>
+            </div>
+          )}
 
           {isLoading && (
             <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20 text-sm text-primary font-mono text-center animate-pulse">

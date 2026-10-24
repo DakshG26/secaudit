@@ -1,55 +1,55 @@
 import React, { useState, useEffect } from 'react';
-import { Navbar } from './components/Navbar';
-import { Hero } from './components/Hero';
-import { Pillars } from './components/Pillars';
-import { InteractiveFeatures } from './components/InteractiveFeatures';
-import { Protocol } from './components/Protocol';
-import { AuditWorkspace } from './components/AuditWorkspace';
-import { ServicesGrid } from './components/ServicesGrid';
-import { Footer } from './components/Footer';
-import { ScanResult } from './types/security';
+import { Sidebar, ScreenId } from './components/Sidebar';
+import { Header } from './components/Header';
+import { HomeDashboard } from './components/screens/HomeDashboard';
+import { ScanProgress } from './components/screens/ScanProgress';
+import { SecurityFindings } from './components/screens/SecurityFindings';
+import { EndpointMap } from './components/screens/EndpointMap';
+import { SecurityReport } from './components/screens/SecurityReport';
+import { RemediationGuide } from './components/screens/RemediationGuide';
+import { SettingsView } from './components/screens/SettingsView';
+import { BoardView } from './components/screens/BoardView';
+import { ScanResult, Finding } from './types/security';
 import { MOCK_VULNERABLE_SCAN, MOCK_CLEAN_SCAN } from './data/mockData';
 
-const App: React.FC = () => {
+export const App: React.FC = () => {
+  const [currentScreen, setCurrentScreen] = useState<ScreenId>('home');
+  const [viewMode, setViewMode] = useState<'interactive' | 'board'>('interactive');
   const [scan, setScan] = useState<ScanResult>(MOCK_VULNERABLE_SCAN);
+  const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
   const [loading, setLoading] = useState(false);
   const [backendLive, setBackendLive] = useState(false);
-  const [tab, setTab] = useState<'flows' | 'findings' | 'matrix' | 'endpoints'>('findings');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('http://localhost:8000/api/health')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.status === 'healthy') setBackendLive(true); })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.status === 'healthy') setBackendLive(true);
+      })
       .catch(() => {});
   }, []);
 
-  const scrollToScanner = () => {
-    document.getElementById('scanner')?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleScan = async (url: string) => {
+  const handleStartScan = async (url: string) => {
     setLoading(true);
     setError(null);
-    scrollToScanner();
+    setCurrentScreen('scan');
 
-    // Local presets — instant
+    // Instant local presets
     if (url === 'sample:clean') {
-      await new Promise(r => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 700));
       setScan(MOCK_CLEAN_SCAN);
-      setTab('findings');
       setLoading(false);
       return;
     }
     if (url === 'sample:vulnerable') {
-      await new Promise(r => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 700));
       setScan(MOCK_VULNERABLE_SCAN);
-      setTab('findings');
       setLoading(false);
       return;
     }
 
-    // Live API scan (real repos)
+    // Live backend scan
     if (backendLive) {
       try {
         const res = await fetch('http://localhost:8000/api/scan', {
@@ -60,55 +60,120 @@ const App: React.FC = () => {
         const data = await res.json();
         if (res.ok) {
           setScan(data);
-          // Default to findings tab — most useful
-          setTab(data.findings.length > 0 ? 'findings' : 'endpoints');
         } else {
-          setError(data.error ?? 'Scan failed');
+          setError(data.error ?? 'Scan execution failed');
         }
-      } catch (e: any) {
-        setError('Cannot reach SecAudit API. Is the backend running on port 8000?');
+      } catch (err: any) {
+        setError('Cannot connect to SecAI engine on port 8000');
       } finally {
         setLoading(false);
       }
       return;
     }
 
-    // Offline fallback
-    await new Promise(r => setTimeout(r, 700));
+    // Fallback simulation
+    await new Promise((r) => setTimeout(r, 1200));
     setScan({ ...MOCK_VULNERABLE_SCAN, target: url, scan_time: new Date().toISOString() });
     setLoading(false);
   };
 
-  const handlePreset = (p: 'vulnerable' | 'clean') => {
-    setScan(p === 'clean' ? MOCK_CLEAN_SCAN : MOCK_VULNERABLE_SCAN);
-    setTab('findings');
-    scrollToScanner();
-  };
-
-  const jumpToTab = (t: 'flows' | 'findings' | 'matrix' | 'endpoints') => {
-    setTab(t);
-    scrollToScanner();
+  const handleSelectFinding = (finding: Finding) => {
+    setSelectedFinding(finding);
   };
 
   return (
-    <div className="min-h-screen bg-background text-ink">
-      <div className="noise-overlay" />
-      <Navbar onSelectPreset={handlePreset} isBackendLive={backendLive} />
-      <main>
-        <Hero onScan={handleScan} isLoading={loading} isBackendLive={backendLive} />
-        <Pillars />
-        <InteractiveFeatures chains={scan.chains} onSelectTab={jumpToTab} />
-        <Protocol />
-        <AuditWorkspace
-          scanResult={scan}
-          isLoading={loading}
-          errorMsg={error}
-          activeTab={tab}
-          setActiveTab={setTab}
+    <div className="flex h-screen w-screen overflow-hidden bg-[#F7F8FC] text-[#18213D] font-sans antialiased">
+      {/* Slim Pale Left Sidebar */}
+      <Sidebar
+        currentScreen={currentScreen}
+        onNavigate={(screen) => {
+          setCurrentScreen(screen);
+          setViewMode('interactive');
+        }}
+        isBackendLive={backendLive}
+        activeTarget={scan.target}
+      />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Top Header */}
+        <Header
+          currentScreen={currentScreen}
+          viewMode={viewMode}
+          onToggleViewMode={() => setViewMode((prev) => (prev === 'interactive' ? 'board' : 'interactive'))}
+          onQuickScan={() => setCurrentScreen('home')}
+          target={scan.target}
+          isBackendLive={backendLive}
         />
-        <ServicesGrid />
-      </main>
-      <Footer />
+
+        {/* Dynamic Screen View */}
+        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+          {error && (
+            <div className="mb-6 p-4 rounded-xl bg-[#F45D75]/10 border border-[#F45D75]/25 text-[#F45D75] text-xs font-medium flex items-center justify-between">
+              <span>{error}</span>
+              <button onClick={() => setError(null)} className="underline cursor-pointer font-bold">Dismiss</button>
+            </div>
+          )}
+
+          {viewMode === 'board' ? (
+            <BoardView
+              scan={scan}
+              onSelectScreen={(s) => {
+                setCurrentScreen(s);
+                setViewMode('interactive');
+              }}
+              onSelectFinding={handleSelectFinding}
+            />
+          ) : (
+            <>
+              {currentScreen === 'home' && (
+                <HomeDashboard
+                  scan={scan}
+                  onStartScan={handleStartScan}
+                  onNavigate={setCurrentScreen}
+                  isLoading={loading}
+                />
+              )}
+
+              {currentScreen === 'scan' && (
+                <ScanProgress
+                  target={scan.target}
+                  isLiveScanning={loading}
+                  onCancel={() => setCurrentScreen('home')}
+                  onViewResults={() => setCurrentScreen('findings')}
+                />
+              )}
+
+              {currentScreen === 'findings' && (
+                <SecurityFindings
+                  findings={scan.findings}
+                  onSelectFinding={handleSelectFinding}
+                  onNavigateToRemediation={() => setCurrentScreen('remediation')}
+                />
+              )}
+
+              {currentScreen === 'endpoints' && (
+                <EndpointMap endpoints={scan.endpoints} />
+              )}
+
+              {currentScreen === 'report' && (
+                <SecurityReport scan={scan} />
+              )}
+
+              {currentScreen === 'remediation' && (
+                <RemediationGuide
+                  findings={scan.findings}
+                  selectedFindingId={selectedFinding?.id}
+                />
+              )}
+
+              {currentScreen === 'settings' && (
+                <SettingsView />
+              )}
+            </>
+          )}
+        </main>
+      </div>
     </div>
   );
 };

@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+import requests
 from flask import Flask, request, jsonify
 
 from secaudit.inventory import extract_endpoints
@@ -78,18 +79,50 @@ def scan_endpoint():
             target_path = str(DEMO_FIXED)
             policy_file = str(DEMO_FIXED / "policy.yml")
         elif target_input.startswith("https://github.com/") or target_input.startswith("http://github.com/"):
+            # Clean URL
+            clean_url = target_input.rstrip("/")
+            if clean_url.endswith(".git"):
+                clean_url = clean_url[:-4]
+
+            # Fast metadata check via GitHub API
+            repo_path = clean_url.replace("https://github.com/", "").replace("http://github.com/", "").strip("/")
+            parts = repo_path.split("/")
+            if len(parts) >= 2:
+                owner, repo = parts[0], parts[1]
+                try:
+                    meta_res = requests.get(
+                        f"https://api.github.com/repos/{owner}/{repo}",
+                        headers={"User-Agent": "SecAudit-Scanner/1.0"},
+                        timeout=5
+                    )
+                    if meta_res.status_code == 200:
+                        meta = meta_res.json()
+                        lang = meta.get("language") or ""
+                        size_kb = meta.get("size", 0)
+                        if lang and lang.lower() in ("swift", "c", "c++", "c#", "rust", "go", "java", "kotlin", "dart", "flutter", "objective-c"):
+                            desc = meta.get("description") or "Native application"
+                            return jsonify({
+                                "error": f"'{owner}/{repo}' is a {lang} project ({desc}). SecAudit is specifically built for Python (Flask/FastAPI/Bottle) and JavaScript web applications. No web routes exist to audit."
+                            }), 400
+                        if size_kb > 80000:
+                            return jsonify({
+                                "error": f"Repository '{owner}/{repo}' is too large ({size_kb // 1024} MB) for ephemeral sandboxing. Please test repositories under 50 MB."
+                            }), 400
+                except Exception:
+                    pass
+
             # Clone public repository into ephemeral sandbox
             is_github = True
             temp_dir = tempfile.mkdtemp(prefix="secaudit_repo_")
             clone_cmd = [
                 "git", "clone", "--depth=1", "--single-branch",
-                target_input, temp_dir
+                clean_url, temp_dir
             ]
             res = subprocess.run(clone_cmd, capture_output=True, text=True, timeout=60)
             if res.returncode != 0:
                 err_text = res.stderr.strip()
                 if "Repository not found" in err_text or "not found" in err_text:
-                    return jsonify({"error": f"Repository '{target_input}' not found. Please ensure it is a public GitHub repository."}), 404
+                    return jsonify({"error": f"Repository '{clean_url}' not found. Please ensure it is a public GitHub repository."}), 404
                 return jsonify({
                     "error": f"Could not clone repository: {err_text[:200]}"
                 }), 400
@@ -214,4 +247,4 @@ def scan_endpoint():
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8000, debug=False)
+    app.run(host="127.0.0.1", port=8000, debug=False, threaded=True)
